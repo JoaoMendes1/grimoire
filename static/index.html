@@ -2,10 +2,9 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Grimoire - Bloqueado</title>
+    <meta name="referrer" content="no-referrer"> <title>Grimoire</title>
 </head>
 <body>
-    <!-- Tela 1: Onde o usuário digita a senha -->
     <div id="tela-login">
         <h2>Digite o PIN do Grimoire</h2>
         <input type="password" id="campo-pin" placeholder="Senha">
@@ -13,38 +12,89 @@
         <p id="aviso" style="color: red;"></p>
     </div>
 
-    <!-- Tela 2: O dicionário real (escondido no início) -->
     <div id="tela-app" style="display:none;">
-        <h2>Bem-vindo ao Grimoire! (Acesso Liberado)</h2>
-        <p>A interface completa entrará aqui nas próximas etapas.</p>
+        <h2>Meu Grimoire</h2>
+        
+        <div>
+            <input type="text" id="novo-termo" placeholder="Palavra em inglês...">
+            <button onclick="salvarPalavra()">Adicionar</button>
+        </div>
+
+        <ul id="lista-palavras"></ul>
     </div>
 
-    <script>
-        // Função ativada quando clica no botão "Entrar"
+   <script>
+        const headersApp = { 'Content-Type': 'application/json' };
+
         function tentarAcesso() {
-            // Pega o que foi digitado no campo
             const pin = document.getElementById('campo-pin').value;
-            
-            // Faz um teste rápido na nossa rota de tradução mandando a senha
-            fetch('/api/translate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-App-PIN': pin // Envia a senha digitada
-                },
-                body: JSON.stringify({ term: "teste" })
-            }).then(resposta => {
-                // Se o servidor barrar (código 401)
-                if (resposta.status === 401) {
+            headersApp['X-App-PIN'] = pin;
+
+            fetch('/api/words', { method: 'GET', headers: headersApp })
+            .then(res => {
+                if (res.status === 401) {
                     document.getElementById('aviso').innerText = "PIN Incorreto!";
                 } else {
-                    // Se passar, esconde o login e mostra o sistema
                     document.getElementById('tela-login').style.display = 'none';
                     document.getElementById('tela-app').style.display = 'block';
-                    
-                    // Salva a senha no navegador para as próximas ações
-                    localStorage.setItem('app_pin', pin);
+                    carregarLista();
                 }
+            });
+        }
+
+        async function salvarPalavra() {
+            const termo = document.getElementById('novo-termo').value;
+            if (!termo) return;
+
+            const resTrad = await fetch('/api/translate', { method: 'POST', headers: headersApp, body: JSON.stringify({ term: termo }) });
+            const dadosTrad = await resTrad.json();
+            
+            const resAud = await fetch('/api/audio', { method: 'POST', headers: headersApp, body: JSON.stringify({ term: termo }) });
+            const dadosAud = await resAud.json();
+
+            const traducaoCorreta = dadosTrad.translatedText || dadosTrad.translation || dadosTrad.Translation || "Erro";
+            const audioCorreto = dadosAud.audioUrl || dadosAud.AudioURL || "";
+
+            await fetch('/api/words', {
+                method: 'POST',
+                headers: headersApp,
+                body: JSON.stringify({ term: termo, translation: traducaoCorreta, audioUrl: audioCorreto })
+            });
+
+            document.getElementById('novo-termo').value = '';
+            carregarLista();
+        }
+
+        function carregarLista() {
+            fetch('/api/words', { method: 'GET', headers: headersApp })
+            .then(res => res.json())
+            .then(dados => {
+                const lista = document.getElementById('lista-palavras');
+                lista.innerHTML = ''; // Limpa a lista antes de desenhar
+                
+                dados.forEach(palavra => {
+                    const termoCorreto = palavra.term || palavra.Term || "";
+                    const traducaoCorreta = palavra.translation || palavra.Translation || "";
+                    const audioCorreto = palavra.audioUrl || palavra.AudioURL || "";
+                    
+                    // Cria a linha da lista
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>${termoCorreto}</strong> - ${traducaoCorreta} `;
+                    
+                    // Cria o botão de forma segura, sem quebrar o link
+                    const btn = document.createElement('button');
+                    btn.textContent = 'Ouvir';
+                    btn.onclick = function() {
+                        if (audioCorreto && audioCorreto.startsWith("http")) {
+                            new Audio(audioCorreto).play().catch(() => alert("Áudio bloqueado pelo navegador."));
+                        } else {
+                            alert("Áudio inválido para esta palavra.");
+                        }
+                    };
+                    
+                    li.appendChild(btn);
+                    lista.appendChild(li);
+                });
             });
         }
     </script>

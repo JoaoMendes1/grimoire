@@ -3,48 +3,54 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
-	"grimoire/internal/models"
 )
 
-// Estrutura para ler a resposta da API de tradução externa
-type APIResponse struct {
-	ResponseData struct {
-		TranslatedText string `json:"translatedText"`
-	} `json:"responseData"`
+type TranslateRequest struct {
+	Term string `json:"term"`
+}
+
+type TranslateResponse struct {
+	Translation string `json:"translation"`
 }
 
 func TranslateHandler(w http.ResponseWriter, r *http.Request) {
-	var req models.TranslateRequest
-	
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil || req.Term == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(models.TranslateResponse{Error: "Termo inválido"})
+	var req TranslateRequest
+	json.NewDecoder(r.Body).Decode(&req)
+
+	if req.Term == "" {
+		http.Error(w, "Termo em branco", http.StatusBadRequest)
 		return
 	}
 
-	// Prepara a URL da API gratuita (Inglês para Português)
 	textoSeguro := url.QueryEscape(req.Term)
-	urlTraducao := fmt.Sprintf("https://api.mymemory.translated.net/get?q=%s&langpair=en|pt", textoSeguro)
-	
-	// Faz a requisição para a internet
-	resp, err := http.Get(urlTraducao)
+	apiURL := fmt.Sprintf("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt&dt=t&q=%s", textoSeguro)
+
+	resp, err := http.Get(apiURL)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(models.TranslateResponse{Error: "Erro ao conectar com tradutor"})
+		http.Error(w, "Erro na API de tradução", http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
 
-	// Lê o resultado
-	var apiRes APIResponse
-	json.NewDecoder(resp.Body).Decode(&apiRes)
+	body, _ := io.ReadAll(resp.Body)
 
-	// Monta a nossa resposta final
-	res := models.TranslateResponse{Translation: apiRes.ResponseData.TranslatedText}
+	var traduzido string
+	var dados []interface{}
 	
+	// Navega no retorno da API do Google para extrair apenas o texto em português
+	if err := json.Unmarshal(body, &dados); err == nil && len(dados) > 0 {
+		if blocos, ok := dados[0].([]interface{}); ok && len(blocos) > 0 {
+			for _, bloco := range blocos {
+				if pedaco, ok := bloco.([]interface{}); ok && len(pedaco) > 0 {
+					traduzido += fmt.Sprintf("%v", pedaco[0])
+				}
+			}
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(res)
+	json.NewEncoder(w).Encode(TranslateResponse{Translation: traduzido})
 }
