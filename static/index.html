@@ -71,28 +71,37 @@
             .then(dados => {
                 const lista = document.getElementById('lista-palavras');
                 lista.innerHTML = ''; // Limpa a lista antes de desenhar
-                
+
                 dados.forEach(palavra => {
+                    const idCorreto = palavra.id || palavra.Id || palavra.ID; 
                     const termoCorreto = palavra.term || palavra.Term || "";
                     const traducaoCorreta = palavra.translation || palavra.Translation || "";
-                    const audioCorreto = palavra.audioUrl || palavra.AudioURL || "";
-                    
-                    // Cria a linha da lista
-                    const li = document.createElement('li');
-                    li.innerHTML = `<strong>${termoCorreto}</strong> - ${traducaoCorreta} `;
-                    
-                    // Cria o botão de forma segura, sem quebrar o link
-                    const btn = document.createElement('button');
-                    btn.textContent = 'Ouvir';
-                    btn.onclick = function() {
-                        if (audioCorreto && audioCorreto.startsWith("http")) {
-                            new Audio(audioCorreto).play().catch(() => alert("Áudio bloqueado pelo navegador."));
+                    const audioCorreto = palavra.audioUrl || palavra.AudioURL || ""; 
+
+                    const li = document.createElement('li'); 
+                    li.innerHTML = `<strong>${termoCorreto}</strong> - ${traducaoCorreta}`; 
+
+                    const btnOuvir = document.createElement('button'); 
+                    btnOuvir.textContent = 'Ouvir'; 
+                    btnOuvir.onclick = function() {
+                        if (audioCorreto && audioCorreto.startsWith('http')) {
+                            new Audio(audioCorreto).play().catch(() => alert("Áudio bloqueado")); 
                         } else {
-                            alert("Áudio inválido para esta palavra.");
+                            alert("Áudio inválido."); 
                         }
                     };
-                    
-                    li.appendChild(btn);
+
+                    const btnExcluir = document.createElement('button'); 
+                    btnExcluir.textContent = 'X'; 
+                    btnExcluir.style.marginLeft = '10px';
+                    btnExcluir.style.color = 'red'; 
+                    btnExcluir.onclick = function(){
+                        fetch('/api/words/' + idCorreto, { method: 'DELETE', headers: headersApp})
+                        .then(() => carregarLista()); // Atualiza a lista na mesma hora
+                    };
+
+                    li.appendChild(btnOuvir);
+                    li.appendChild(btnExcluir);
                     lista.appendChild(li);
                 });
             });

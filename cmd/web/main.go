@@ -35,6 +35,9 @@ func main() {
 	r.With(middleware.AuthPIN).Post("/api/words", handlers.SaveWordHandler)
 	r.With(middleware.AuthPIN).Get("/api/words", handlers.ListWordsHandler)
 
+	// Rota para deletar uma palavra específica
+	r.With(middleware.AuthPIN).Delete("/api/words/{id}", handlers.DeleteWordHandler)
+
 	fmt.Println("Servidor rodando na porta 8080...")
 	http.ListenAndServe(":8080", r)
 }

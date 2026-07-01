@@ -5,13 +5,14 @@ import (
 	"net/http"
 
 	"grimoire/internal/database"
+	"github.com/go-chi/chi/v5"
 )
 
 // Estruturas para receber e enviar dados das palavras
 type WordRequest struct {
 	Term            string `json:"term"`
-	Translation     string `json: "translation"`
-	AudioURL        string `json: "audioUrl"`
+	Translation     string `json:"translation"`
+	AudioURL        string `json:"audioUrl"`
 }
 
 type WordResponse struct {
@@ -66,4 +67,16 @@ func ListWordsHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(words)
+}
+
+func DeleteWordHandler(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	_, err := database.DB.Exec("DELETE FROM vocabularies WHERE id = ?", id)
+	if err != nil {
+		http.Error(w, "Erro ao apagar", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
