@@ -3,17 +3,24 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"grimoire/internal/database"
 	"grimoire/internal/handlers"
 
-	// Importar a nova pasta de segurança 
+	// Importar a nova pasta de segurança
 	"grimoire/internal/middleware"
 
 	"github.com/go-chi/chi/v5"
 )
 
 func main() {
+	if os.Getenv("APP_PIN") == "" {
+		fmt.Println("Erro crítico: Variável de ambiente APP_PIN não definida. Defina uma senha segura antes de iniciar o servidor.")
+		os.Exit(1)
+	}
+
+
 	fmt.Println("Iniciando Grimoire...")
 
 	err := database.InitDB()
