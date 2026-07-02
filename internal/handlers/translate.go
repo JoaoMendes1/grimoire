@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type TranslateRequest struct {
@@ -26,22 +27,42 @@ func TranslateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	textoSeguro := url.QueryEscape(req.Term)
-	apiURL := fmt.Sprintf("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt&dt=t&q=%s", textoSeguro)
+	
+	// Primeira tentativa: autodeteta o idioma e tenta traduzir para português
+	apiURL := fmt.Sprintf("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=pt&dt=t&q=%s", textoSeguro)
 
-	resp, err := http.Get(apiURL)
+	traduzido, idiomaDetectado, err := processarTraducao(apiURL)
 	if err != nil {
 		http.Error(w, "Erro na API de tradução", http.StatusInternalServerError)
 		return
+	}
+
+	// Se o idioma detetado for português, refaz o pedido traduzindo para inglês
+	if strings.HasPrefix(strings.ToLower(idiomaDetectado), "pt") {
+		apiURL = fmt.Sprintf("https://translate.googleapis.com/translate_a/single?client=gtx&sl=pt&tl=en&dt=t&q=%s", textoSeguro)
+		traduzido, _, _ = processarTraducao(apiURL)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(TranslateResponse{Translation: traduzido})
+}
+
+// Função isolada para evitar repetição 
+func processarTraducao(urlReq string) (string, string, error) {
+	resp, err := http.Get(urlReq)
+	if err != nil {
+		return "", "", err
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 
 	var traduzido string
+	var idiomaDetectado string
 	var dados []interface{}
 	
-	// Navega no retorno da API do Google para extrair apenas o texto em português
 	if err := json.Unmarshal(body, &dados); err == nil && len(dados) > 0 {
+		// Extrai o texto traduzido (índice 0)
 		if blocos, ok := dados[0].([]interface{}); ok && len(blocos) > 0 {
 			for _, bloco := range blocos {
 				if pedaco, ok := bloco.([]interface{}); ok && len(pedaco) > 0 {
@@ -49,8 +70,14 @@ func TranslateHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		
+		// Extrai o idioma detetado (índice 2)
+		if len(dados) > 2 {
+			if lang, ok := dados[2].(string); ok {
+				idiomaDetectado = lang
+			}
+		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(TranslateResponse{Translation: traduzido})
+	return traduzido, idiomaDetectado, nil
 }
