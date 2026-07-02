@@ -37,7 +37,7 @@
             timerDigitacao = setTimeout(async () => {
                 const res = await fetch('/api/translate', { method: 'POST', headers: headersApp, body: JSON.stringify({ term: termo }) });
                 const dados = await res.json();
-                campoTraducao.value = dados.translatedText || dados.translation || dados.Translation || "Erro na decodificação";
+                campoTraducao.value = dados.translation || "Erro na decodificação";
                 
                 // Ajusta o tamanho da caixa de tradução
                 campoTraducao.style.height = ''; 
@@ -63,7 +63,7 @@
 
             const resAud = await fetch('/api/audio', { method: 'POST', headers: headersApp, body: JSON.stringify({ term: termo }) });
             const dadosAud = await resAud.json();
-            const audioCorreto = dadosAud.audioUrl || dadosAud.AudioURL || "";
+            const audioCorreto = dadosAud.audioUrl || "";
 
             // O backend ainda não salva a categoria, mas enviamos o resto normalmente
             await fetch('/api/words', {
@@ -90,10 +90,10 @@
                 lista.innerHTML = ''; 
 
                 dados.forEach((palavra, index) => {
-                    const id = palavra.id || palavra.Id || palavra.ID; 
-                    const termo = palavra.term || palavra.Term || "";
-                    const traducao = palavra.translation || palavra.Translation || "";
-                    const audio = palavra.audioUrl || palavra.AudioURL || ""; 
+                    const id = palavra.id;
+                    const termo = palavra.term || "";
+                    const traducao = palavra.translation || "";
+                    const audio = palavra.audioUrl || "";
                     
                     // Usa a categoria salva na sessão para o item mais novo, ou "GERAL" para os antigos
                     const catExibida = (index === 0 && window.ultimaCategoria) ? window.ultimaCategoria : "GERAL";
