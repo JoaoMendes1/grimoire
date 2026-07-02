@@ -12,12 +12,12 @@ Este documento mapeia a evolução do projeto, detalhando o que já foi estabele
 - [x] Implementar tradução automática via API externa[cite: 1].
 - [x] Adicionar reprodução de áudio híbrida (API + Web Speech).
 
-## Fase 2: Correções e Refinamentos (🔄 Em Andamento)
+## Fase 2: Correções e Refinamentos (✅ Concluído)
 
-- [ ] **Issue #10 - Segurança:** Corrigir middleware de autenticação no backend para bloquear requisições sem PIN válido.
-- [ ] **Issue #11 - Usabilidade de Áudio:** Implementar trava no JavaScript para pausar áudios em execução antes de iniciar um novo.
-- [ ] **Issue #12 - Limpeza Visual:** Remover a etiqueta "SALVO" da listagem de palavras para reduzir poluição visual.
-- [ ] **Issue #13 - Tradução Bidirecional:** Atualizar API Go para detectar o idioma automaticamente e traduzir nos dois sentidos (Inglês <-> Português).
+- [x] **Issue #10 - Segurança:** Corrigir middleware de autenticação no backend para bloquear requisições sem PIN válido.
+- [x] **Issue #11 - Usabilidade de Áudio:** Implementar trava no JavaScript para pausar áudios em execução antes de iniciar um novo.
+- [x] **Issue #12 - Limpeza Visual:** Remover a etiqueta "SALVO" da listagem de palavras para reduzir poluição visual.
+- [x] **Issue #13 - Tradução Bidirecional:** Atualizar API Go para detectar o idioma automaticamente e traduzir nos dois sentidos (Inglês <-> Português).
 
 ## Fase 3: Preparação para Nuvem (A Fazer)
 
