@@ -31,5 +31,6 @@ go.work.sum
 # .idea/
 # .vscode/
 
-# Linux
-*.deb
+# Banco de dados local
+*.db
+vocab.db
