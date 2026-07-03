@@ -10,10 +10,12 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <title>Terminal Vocab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
-   
 </head>
+
 <body class="min-h-screen p-6 md:p-10 flex flex-col items-center">
 
     <div id="tela-login" class="panel p-8 rounded-xl w-full max-w-sm text-center mt-32">
@@ -24,13 +26,12 @@
     </div>
 
     <div id="tela-app" style="display:none;" class="w-full max-w-7xl">
-        
-        <header class="flex justify-between items-center mb-10 border-b border-gray-700 pb-6">
-            <div>
-                <h1 class="text-3xl font-extrabold text-white flex items-center gap-3 tracking-tight">
-                    <span class="text-[#66fcf1]">//</span> TERMINAL VOCAB
+        <header class="scan-header">
+            <div class="logo-block">
+                <h1 data-text="// TERMINAL VOCAB">
+                    <span class="glyph">//</span> TERMINAL VOCAB<span class="cursor"></span>
                 </h1>
-                <p class="text-xs text-[#45a29e] mt-1 uppercase tracking-[0.2em]">Registro de Dados de Exploração</p>
+                <p>Registro de Dados de Exploração</p>
             </div>
         </header>
 
@@ -39,7 +40,7 @@
                 <h3 class="text-sm font-bold text-gray-300 mb-6 uppercase tracking-widest flex items-center gap-2">
                     <span class="text-[#66fcf1]">+</span> Novo Registro
                 </h3>
-                
+
                 <div class="space-y-5">
                     <div>
                         <label class="block text-[11px] font-bold text-gray-400 mb-2 uppercase tracking-wide">Termo Detectado (Inglês)</label>
@@ -69,7 +70,6 @@
 
             <main class="w-full lg:w-2/3 flex flex-col gap-6">
                 <input type="text" id="campo-busca" oninput="filtrarLista(this.value)" placeholder="Buscar no banco de dados..." class="panel input-dark w-full px-5 py-4 rounded-xl text-sm">
-                
                 <div id="lista-palavras" class="flex flex-col gap-4"></div>
             </main>
         </div>
@@ -85,6 +85,5 @@
             });
         }
     </script>
-
 </body>
 </html>
