@@ -12,10 +12,10 @@ type TranslateResponse struct {
 // Define um contrato restrito 
 
 type AudioRequest struct {
-	Term string `json: "term"`
+	Term string `json:"term"`
 }
 
 type AudioResponse struct {
-	AudioURL string `json: "audioUrl"`
-	Error    string `json: "error,omitempty"`
+	AudioURL string `json:"audioUrl"`
+	Error    string `json:"error,omitempty"`
 }

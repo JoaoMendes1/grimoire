@@ -2,6 +2,7 @@
         let audioAtual = null; 
         let botaoAudioAtual = null; 
         let timerDigitacao;
+        let ultimaListaPalavras = [];
 
         function tentarAcesso() {
             const pin = document.getElementById('campo-pin').value;
@@ -86,6 +87,7 @@
             fetch('/api/words', { method: 'GET', headers: headersApp })
             .then(res => res.json())
             .then(dados => {
+                 ultimaListaPalavras = dados;
                 const lista = document.getElementById('lista-palavras');
                 lista.innerHTML = ''; 
 
@@ -109,7 +111,7 @@
                             </div>
                             
                             <div class="flex items-center gap-3 sm:border-l border-gray-700 sm:pl-5 w-full sm:w-auto pt-4 sm:pt-0 border-t sm:border-t-0 mt-2 sm:mt-0">
-                                <button onclick="tocarAudio(this,'${audio}', \`${termo}\`)" class="p-2 rounded-full bg-[#0b0c10] border border-[#2c353f] text-[#66fcf1] hover:bg-[#45a29e] hover:text-[#0b0c10] transition" title="Ouvir">
+                                <button onclick="tocarAudio(this, ${index})"  class="p-2 rounded-full bg-[#0b0c10] border border-[#2c353f] text-[#66fcf1] hover:bg-[#45a29e] hover:text-[#0b0c10] transition" title="Ouvir">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M11.536 14.01A8.473 8.473 0 0 0 14.026 8a8.473 8.473 0 0 0-2.49-6.01l-.708.707A7.476 7.476 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303l.708.707z"/><path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.483 5.483 0 0 1 11.025 8a5.483 5.483 0 0 1-1.61 3.89l.706.706z"/><path d="M8.707 11.182A4.486 4.486 0 0 0 10.025 8a4.486 4.486 0 0 0-1.318-3.182L8 5.525A3.489 3.489 0 0 1 9.025 8 3.49 3.49 0 0 1 8 10.475l.707.707zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06z"/></svg>
                                 </button>
                                 
@@ -145,7 +147,10 @@
         }
 
         // Tocar Áudio (com feedback visual, toggle e interrupção)
-        function tocarAudio(botao, url, texto) {
+        function tocarAudio(botao, index) {
+             const palavra = ultimaListaPalavras[index];
+             const url = palavra.audioUrl || "";
+             const texto = palavra.term || "";
             if (botaoAudioAtual === botao) {
                 if (audioAtual) audioAtual.pause();
                 window.speechSynthesis.cancel(); 
