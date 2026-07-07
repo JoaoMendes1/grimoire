@@ -45,6 +45,17 @@ func main() {
 	// Rota para deletar uma palavra específica
 	r.With(middleware.AuthPIN).Delete("/api/words/{id}", handlers.DeleteWordHandler)
 
-	fmt.Println("Servidor rodando na porta 8080...")
-	http.ListenAndServe(":8080", r)
+	// Lê a porta que a nuvem fornecer. Se estiver vazio usa a 8080 (para testes locais)
+	porta := os.Getenv("PORT")
+	if porta == "" {
+		porta = "8080"
+	}
+
+	fmt.Println("Servidor rodando na porta", porta, "...")
+
+	// Usa a porta dinâmica 
+	err = http.ListenAndServe(":"+porta, r)
+	if err != nil {
+		fmt.Println("Erro FATAL NO SERVIDOR:", err)
+	}
 }
