@@ -13,17 +13,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body class="min-h-screen p-6 md:p-10 flex flex-col items-center">
 
-    <div id="tela-login" class="panel p-8 rounded-xl w-full max-w-sm text-center mt-32">
-        <h2 class="text-2xl font-bold mb-6 text-white tracking-wide">Acesso ao Terminal</h2>
-        <input type="password" id="campo-pin" placeholder="Senha de acesso" class="input-dark w-full px-4 py-3 rounded-lg mb-6" onkeypress="if(event.key === 'Enter') tentarAcesso()">
-        <button onclick="tentarAcesso()" class="btn-primary w-full py-3 rounded-lg uppercase tracking-wider text-sm">Sincronizar</button>
-        <p id="aviso" class="text-red-400 mt-4 text-sm font-medium"></p>
-    </div>
+    <div id="tela-login" class="flex flex-col items-center justify-center w-full max-w-md mx-auto mt-32 space-y-8">
+    <h2 class="text-3xl font-bold text-gray-100">Acesse seu Grimoire</h2>
+    <button onclick="entrarComGoogle()" class="flex items-center justify-center w-full gap-3 px-6 py-3 font-semibold text-gray-900 bg-white rounded-lg shadow-md hover:bg-gray-100 transition-colors">
+        <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-6 h-6" alt="Google">
+        Entrar com o Google
+    </button>
+</div>
 
     <div id="tela-app" style="display:none;" class="w-full max-w-7xl">
         <header class="scan-header">
@@ -33,6 +35,11 @@
                 </h1>
                 <p>Registro de Dados de Exploração</p>
             </div>
+            
+            <button onclick="sair()" class="text-xs font-bold text-gray-500 hover:text-red-500 transition-colors flex items-center gap-2 tracking-widest uppercase mb-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/></svg>
+                Desconectar
+            </button>
         </header>
 
         <div class="flex flex-col lg:flex-row gap-8">
@@ -75,7 +82,7 @@
         </div>
     </div>
 
-    <script src="/app.js"></script>
+    <script src="/app.js?v=2"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

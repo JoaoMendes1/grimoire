@@ -1,25 +1,72 @@
-        const headersApp = { 'Content-Type': 'application/json' };
+        const supabaseUrl = 'https://krzaopiogbskauhicfvp.supabase.co'; 
+        const supabaseKey = 'sb_publishable_YBYol7-sdJpw_ULxO04Q_Q_tfTKuVNQ';
+        const clienteSupabase = window.supabase.createClient(supabaseUrl, supabaseKey); 
+        // const headersApp = { 'Content-Type': 'application/json' };
+        async function getHeaders() {
+    const { data } = await clienteSupabase.auth.getSession();
+    const token = data.session?.access_token || '';
+    return { 
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+    };
+}
+
+
         let audioAtual = null; 
         let botaoAudioAtual = null; 
         let timerDigitacao;
         let ultimaListaPalavras = [];
 
-        function tentarAcesso() {
-            const pin = document.getElementById('campo-pin').value;
-            headersApp['X-App-PIN'] = pin;
-
-            fetch('/api/words', { method: 'GET', headers: headersApp })
-            .then(res => {
-                if (res.status === 401) {
-                    document.getElementById('aviso').innerText = "Acesso Negado.";
-                } else {
-                    document.body.classList.remove('items-center');
-                    document.getElementById('tela-login').style.display = 'none';
-                    document.getElementById('tela-app').style.display = 'block';
-                    carregarLista();
-                }
+        // Função de Acesso
+        window.entrarComGoogle = async function() {
+            const { data, error } = await clienteSupabase.auth.signInWithOAuth({
+                provider: 'google', 
             });
+
+            if (error) {
+                alert("Erro ao tentar entrar com o Google:" + error.message); 
+            }
         }
+
+        window.sair = async function() {
+            const { error } = await clienteSupabase.auth.signOut();
+            if (error) {
+                alert("Erro ao sair: " + error.message);
+            } else {
+                document.getElementById('lista-palavras').innerHTML = ''; // Limpa os dados da tela
+            }
+        }
+
+        // Verifica se o usuário conectou com sucesso e libera a tela do app
+        clienteSupabase.auth.onAuthStateChange((event, session) => {
+            if(session) {
+                // Conta validada: esconde o botão e mostra o app 
+                document.getElementById('tela-login').style.display = 'none'; 
+                document.getElementById('tela-app').style.display = 'block';
+                carregarLista();  
+            } else {
+                // Sem conta: garante que só o botão de login apareça
+                document.getElementById('tela-login').style.display = 'flex'; 
+                document.getElementById('tela-app').style.display = 'none';
+            }
+        });
+
+        // function tentarAcesso() {
+        //     const pin = document.getElementById('campo-pin').value;
+        //     headersApp['X-App-PIN'] = pin;
+
+        //     fetch('/api/words', { method: 'GET', headers: headersApp })
+        //     .then(res => {
+        //         if (res.status === 401) {
+        //             document.getElementById('aviso').innerText = "Acesso Negado.";
+        //         } else {
+        //             document.body.classList.remove('items-center');
+        //             document.getElementById('tela-login').style.display = 'none';
+        //             document.getElementById('tela-app').style.display = 'block';
+        //             carregarLista();
+        //         }
+        //     });
+        // }
 
         // Tradução Automática
         document.getElementById('novo-termo').addEventListener('input', function() {
@@ -36,7 +83,7 @@
             campoTraducao.value = 'Decodificando...';
             
             timerDigitacao = setTimeout(async () => {
-                const res = await fetch('/api/translate', { method: 'POST', headers: headersApp, body: JSON.stringify({ term: termo }) });
+                const res = await fetch('/api/translate', { method: 'POST', headers: await getHeaders(), body: JSON.stringify({ term: termo }) });
                 const dados = await res.json();
                 campoTraducao.value = dados.translation || "Erro na decodificação";
                 
@@ -62,14 +109,14 @@
             
             if (!termo || traducao === 'Decodificando...') return;
 
-            const resAud = await fetch('/api/audio', { method: 'POST', headers: headersApp, body: JSON.stringify({ term: termo }) });
+            const resAud = await fetch('/api/audio', { method: 'POST', headers: await getHeaders(), body: JSON.stringify({ term: termo }) });
             const dadosAud = await resAud.json();
             const audioCorreto = dadosAud.audioUrl || "";
 
             // O backend ainda não salva a categoria, mas enviamos o resto normalmente
             await fetch('/api/words', {
                 method: 'POST',
-                headers: headersApp,
+                headers: await getHeaders(),
                 body: JSON.stringify({ term: termo, translation: traducao, audioUrl: audioCorreto })
             });
 
@@ -83,8 +130,8 @@
             carregarLista();
         }
 
-        function carregarLista() {
-            fetch('/api/words', { method: 'GET', headers: headersApp })
+        async function carregarLista() {
+            fetch('/api/words', { method: 'GET', headers: await getHeaders() })
             .then(res => res.json())
             .then(dados => {
                  ultimaListaPalavras = dados;
@@ -200,6 +247,6 @@
             }
         }
 
-        function excluirPalavra(id) {
-            fetch('/api/words/' + id, { method: 'DELETE', headers: headersApp }).then(() => carregarLista()); 
+        async function excluirPalavra(id) {
+            fetch('/api/words/' + id, { method: 'DELETE', headers: await getHeaders() }).then(() => carregarLista());
         }

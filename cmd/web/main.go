@@ -15,12 +15,7 @@ import (
 )
 
 func main() {
-	if os.Getenv("APP_PIN") == "" {
-		fmt.Println("Erro crítico: Variável de ambiente APP_PIN não definida. Defina uma senha segura antes de iniciar o servidor.")
-		os.Exit(1)
-	}
-
-
+	
 	fmt.Println("Iniciando Grimoire...")
 
 	err := database.InitDB()
@@ -36,14 +31,14 @@ func main() {
 	r.Handle("/*", fs)
 
 	// 2. Proteção aplicada apenas nas rotas de processamento usando "r.With"
-	r.With(middleware.AuthPIN).Post("/api/translate", handlers.TranslateHandler)
-	r.With(middleware.AuthPIN).Post("/api/audio", handlers.AudioHandler)
+	r.With(middleware.AuthSupabase).Post("/api/translate", handlers.TranslateHandler)
+	r.With(middleware.AuthSupabase).Post("/api/audio", handlers.AudioHandler)
 
-	r.With(middleware.AuthPIN).Post("/api/words", handlers.SaveWordHandler)
-	r.With(middleware.AuthPIN).Get("/api/words", handlers.ListWordsHandler)
+	r.With(middleware.AuthSupabase).Post("/api/words", handlers.SaveWordHandler)
+	r.With(middleware.AuthSupabase).Get("/api/words", handlers.ListWordsHandler)
 
 	// Rota para deletar uma palavra específica
-	r.With(middleware.AuthPIN).Delete("/api/words/{id}", handlers.DeleteWordHandler)
+	r.With(middleware.AuthSupabase).Delete("/api/words/{id}", handlers.DeleteWordHandler)
 
 	// Lê a porta que a nuvem fornecer. Se estiver vazio usa a 8080 (para testes locais)
 	porta := os.Getenv("PORT")

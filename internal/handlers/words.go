@@ -10,7 +10,6 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// Estruturas para receber e enviar dados das palavras
 type WordRequest struct {
 	Term        string `json:"term"`
 	Translation string `json:"translation"`
@@ -25,22 +24,21 @@ type WordResponse struct {
 	Status      string `json:"status"`
 }
 
-// SaveWordHandler grava uma nova palavra no banco de dados
 func SaveWordHandler(w http.ResponseWriter, r *http.Request) {
 	var req WordRequest
 	json.NewDecoder(r.Body).Decode(&req)
 
-	// MUDANÇA 1: O Postgres exige os números ($1, $2, $3) em vez de interrogações (?, ?, ?)
-	// MUDANÇA 2: Como não dá mais para usar "LastInsertId()", pedimos para o comando devolver o ID gerado adicionando "RETURNING id" no final.
-	comando := `INSERT INTO vocabularies (term, translation, audio_url) VALUES ($1, $2, $3) RETURNING id`
+	// Recupera a identificação de quem está a usar
+	userID := r.Context().Value("userID").(string)
+
+	comando := `INSERT INTO vocabularies (term, translation, audio_url, user_id) VALUES ($1, $2, $3, $4) RETURNING id`
 	
 	var id int64
-	err := database.DB.QueryRow(comando, req.Term, req.Translation, req.AudioURL).Scan(&id)
+	err := database.DB.QueryRow(comando, req.Term, req.Translation, req.AudioURL, userID).Scan(&id)
 
 	if err != nil {
-		// DEDO-DURO: Agora o terminal vai gritar em vermelho exatamente qual foi o erro
-		fmt.Println("🚨 ERRO AO INSERIR NO BANCO:", err) 
-		http.Error(w, "Falha ao salvar no banco", http.StatusInternalServerError)
+		fmt.Println("Erro ao inserir:", err) 
+		http.Error(w, "Falha ao gravar", http.StatusInternalServerError)
 		return
 	}
 
@@ -48,15 +46,15 @@ func SaveWordHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int64{"id": id})
 }
 
-// ListWordsHandler lista todas as palavras salva do banco de dados
 func ListWordsHandler(w http.ResponseWriter, r *http.Request) {
-	// MUDANÇA: Como aqui não injetamos nenhuma variável (como o $1), o SELECT continua idêntico.
-	linhas, err := database.DB.Query(`SELECT id, term, translation, audio_url, status FROM vocabularies ORDER BY id DESC`)
+	userID := r.Context().Value("userID").(string)
+
+	// Filtra os dados pelo ID
+	linhas, err := database.DB.Query(`SELECT id, term, translation, audio_url, status FROM vocabularies WHERE user_id = $1 ORDER BY id DESC`, userID)
 	if err != nil {
-		http.Error(w, "Falha ao buscar dados", http.StatusInternalServerError)
+		http.Error(w, "Falha na busca", http.StatusInternalServerError)
 		return
 	}
-
 	defer linhas.Close()
 
 	var words []WordResponse
@@ -89,9 +87,10 @@ func ListWordsHandler(w http.ResponseWriter, r *http.Request) {
 
 func DeleteWordHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	userID := r.Context().Value("userID").(string)
 
-	// MUDANÇA 4: Troca da interrogação (?) pelo cifrão numerado ($1)
-	_, err := database.DB.Exec("DELETE FROM vocabularies WHERE id = $1", id)
+	// Garante a eliminação apenas dos dados corretos
+	_, err := database.DB.Exec("DELETE FROM vocabularies WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
 		http.Error(w, "Erro ao apagar", http.StatusInternalServerError)
 		return
