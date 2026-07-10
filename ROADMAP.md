@@ -19,10 +19,12 @@ Este documento mapeia a evolução do projeto, detalhando o que já foi estabele
 - [x] **Issue #21 - Estabilidade:** Corrigir bloqueio silencioso de mídia no Service Worker e prevenir erro de leitura no banco de dados.
 - [x] **Higiene do Repositório:** Configurar `.gitignore` para blindar o banco de dados (`.db`) e arquivos binários (`.exe`).
 
-## Fase 3: Nuvem e Autenticação (Prioridade Atual)
-- [ ] **Migração de Banco de Dados:** Mudar do SQLite para Supabase (PostgreSQL) para garantir sincronização instantânea.
-- [ ] **Hospedagem:** Subir a API Go em nuvem (Render ou Railway).
-- [ ] **Login com Google (OAuth2):** Vincular os registros à conta pessoal usando a autenticação nativa do Supabase.
+## Fase 3: Nuvem, Autenticação e Segurança (✅ Concluído)
+- [x] **Issue #22 - Migração de Banco de Dados:** Mudar do SQLite para Supabase (PostgreSQL) para garantir sincronização instantânea.
+- [x] **Login com Google (OAuth2):** Vincular os registros à conta pessoal usando a autenticação nativa do Supabase.
+- [x] **Issue #26 - Segurança e Refatoração:** Otimizar middleware, realizar injeção segura de dependências no contexto e remover credenciais fixas do frontend.
+- [x] **Issue #27 - Arquitetura (Fail-Fast):** Implementar barreira de segurança no `main.go` para abortar a inicialização caso faltem variáveis críticas (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLIC_KEY`).
+- [x] **Hospedagem:** Configurar variáveis de ambiente e realizar o deploy do servidor Go no Render com suporte a múltiplas origens de redirecionamento.
 
 ## Fase 4: Nova Identidade, Flashcards e Edição
 - [ ] **Tela de Login:** Implementar a interface imersiva com animações.
