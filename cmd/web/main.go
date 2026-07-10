@@ -9,13 +9,21 @@ import (
 	"grimoire/internal/database"
 	"grimoire/internal/handlers"
 
-	// Importar a nova pasta de segurança
+	
 	"grimoire/internal/middleware"
 
 	"github.com/go-chi/chi/v5"
 )
 
 func main() {
+	// ISSUE #27: Barreira de segurança Fail-Fast
+	varsCriticas := []string{"DATABASE_URL", "SUPABASE_URL", "SUPABASE_PUBLIC_KEY"}
+	for _, v := range varsCriticas {
+		if os.Getenv(v) == "" {
+			fmt.Printf("⛔ ERRO CRÍTICO: Variável de ambiente %s não definida. Servidor abortado.\n", v)
+			os.Exit(1)
+		}
+	}
 	
 	fmt.Println("Iniciando Grimoire...")
 
