@@ -48,7 +48,7 @@ window.entrarComGoogle = async function() {
     const { data, error } = await clienteSupabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: window.location.origin // Garante o retorno para a URL atual
+            redirectTo: window.location.origin + '/' // Garante o retorno para a URL atual
         } 
     });
 
