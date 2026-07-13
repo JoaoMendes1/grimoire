@@ -50,7 +50,11 @@ function configurarTraducao(idOrigem, idDestino) {
         clearTimeout(timerDigitacao);
         const termo = this.value.trim();
         ultimoCampoEditado = idOrigem; 
-        if (!termo) { campoDestino.value = ''; return; }
+        if (!termo) { 
+            campoDestino.value = ''; 
+            campoDestino.style.height = 'auto'; 
+            return; 
+        }
         timerDigitacao = setTimeout(async () => {
             if (ultimoCampoEditado !== idOrigem) return;
             try {
@@ -58,6 +62,9 @@ function configurarTraducao(idOrigem, idDestino) {
                 const dados = await res.json();
                 campoDestino.value = dados.translation || "Erro";
                 idiomaOrigemAtual = dados.sourceLang || 'en'; 
+                // Dispara o auto-resize no campo traduzido
+                campoDestino.style.height = 'auto';
+                campoDestino.style.height = campoDestino.scrollHeight + 'px';
             } catch (error) {}
         }, 600); 
     });
@@ -69,20 +76,15 @@ configurarTraducao('traducao-mobile', 'novo-termo-mobile');
 configurarTraducao('edit-termo', 'edit-traducao');
 configurarTraducao('edit-traducao', 'edit-termo');
 
-// MATEMÁTICA DE CORES PREMIUM (Sem Categoria isolado em Verde)
+// MATEMÁTICA DE CORES PREMIUM
 function obterEstiloCategoria(id) {
-    if (!id) {
-        // Se ID for null, sempre retorna Verde (Sem Categoria)
-        return { corHex: '#00e676', bgTransparente: 'bg-[#00e676]/10', texto: 'text-[#00e676]' }; 
-    }
-    
-    // Lista de cores premium para categorias normais
+    if (!id) { return { corHex: '#00e676', bgTransparente: 'bg-[#00e676]/10', texto: 'text-[#00e676]' }; }
     const estilos = [
-        { corHex: '#00e5ff', bgTransparente: 'bg-[#00e5ff]/10', texto: 'text-[#00e5ff]' }, // Cyan
-        { corHex: '#b388ff', bgTransparente: 'bg-[#b388ff]/10', texto: 'text-[#b388ff]' }, // Purple
-        { corHex: '#ffc107', bgTransparente: 'bg-[#ffc107]/10', texto: 'text-[#ffc107]' }, // Amber
-        { corHex: '#f472b6', bgTransparente: 'bg-[#f472b6]/10', texto: 'text-[#f472b6]' }, // Pink
-        { corHex: '#34d399', bgTransparente: 'bg-[#34d399]/10', texto: 'text-[#34d399]' }  // Emerald
+        { corHex: '#00e5ff', bgTransparente: 'bg-[#00e5ff]/10', texto: 'text-[#00e5ff]' },
+        { corHex: '#b388ff', bgTransparente: 'bg-[#b388ff]/10', texto: 'text-[#b388ff]' },
+        { corHex: '#ffc107', bgTransparente: 'bg-[#ffc107]/10', texto: 'text-[#ffc107]' },
+        { corHex: '#f472b6', bgTransparente: 'bg-[#f472b6]/10', texto: 'text-[#f472b6]' },
+        { corHex: '#34d399', bgTransparente: 'bg-[#34d399]/10', texto: 'text-[#34d399]' }
     ];
     return estilos[id % estilos.length];
 }
@@ -101,7 +103,6 @@ function renderizarCustomSelect(idInput, idText, idDropdown, categorias, idParaS
     const hiddenInput = document.getElementById(idInput);
     const textDisplay = document.getElementById(idText);
     
-    // Adiciona a opção vazia (Sem Categoria) no topo
     let htmlDropdown = `<div class="px-4 py-3 text-sm text-[#00e676] hover:bg-[#1f2937] cursor-pointer border-b border-gray-800 font-bold" onclick="selecionarOpcaoDropdown('${idInput}', '${idText}', '${idDropdown}', '', 'Sem Categoria')">Sem Categoria</div>`;
     
     categorias.forEach(cat => {
@@ -153,7 +154,6 @@ window.salvarNovaCategoria = async function() {
 
 function renderizarFiltros() {
     const wrap = document.getElementById('filter-chips');
-    // Adiciona "Todos", Categorias, e explicitamente "Sem Categoria"
     const nomesCategorias = ['Todos', ...categoriasAtuais.map(c => c.name), 'Sem Categoria'];
     
     wrap.innerHTML = nomesCategorias.map(nome => {
@@ -161,7 +161,7 @@ function renderizarFiltros() {
         if (nome === 'Todos') {
             estilo = { corHex: '#9ca3af', bgTransparente: 'bg-transparent', texto: 'text-gray-400' };
         } else if (nome === 'Sem Categoria') {
-            estilo = obterEstiloCategoria(null); // Puxa o Verde
+            estilo = obterEstiloCategoria(null);
         } else {
             const cat = categoriasAtuais.find(c => c.name === nome);
             estilo = obterEstiloCategoria(cat ? cat.id : null);
@@ -198,7 +198,12 @@ window.salvarPalavra = async function(origem = 'desktop') {
 
     await fetch('/api/words', { method: 'POST', headers: await getHeaders(), body: JSON.stringify({ term: termoFinal, translation: traducaoFinal, audioUrl: dadosAud.audioUrl || "", category_id: categoriaSelecionadaId }) });
 
-    document.getElementById('novo-termo' + sufixo).value = ''; document.getElementById('traducao' + (origem === 'mobile' ? '-mobile' : '-automatica')).value = '';
+    // Limpa e reseta o tamanho elástico das caixas
+    const elTermo = document.getElementById('novo-termo' + sufixo);
+    const elTrad = document.getElementById('traducao' + (origem === 'mobile' ? '-mobile' : '-automatica'));
+    elTermo.value = ''; elTermo.style.height = 'auto';
+    elTrad.value = ''; elTrad.style.height = 'auto';
+
     if(origem === 'mobile') fecharModalMobile();
     carregarLista();
 }
@@ -257,9 +262,14 @@ async function carregarLista() {
     });
 }
 
+// CORRIGIDO: AUTO-RESIZE NA EDIÇÃO
 window.prepararEdicao = function(index) {
     const palavra = ultimaListaPalavras[index]; palavraEmEdicaoId = palavra.id;
-    document.getElementById('edit-termo').value = palavra.term || ""; document.getElementById('edit-traducao').value = palavra.translation || "";
+    const inputTermo = document.getElementById('edit-termo');
+    const inputTraducao = document.getElementById('edit-traducao');
+    
+    inputTermo.value = palavra.term || ""; 
+    inputTraducao.value = palavra.translation || "";
     
     if (palavra.category_id) {
         const cat = categoriasAtuais.find(c => c.id == palavra.category_id);
@@ -270,6 +280,14 @@ window.prepararEdicao = function(index) {
     
     const m = document.getElementById('modal-edicao');
     m.classList.remove('hidden'); m.classList.add('flex');
+
+    // Mágica do Auto-Resize ao abrir o modal
+    setTimeout(() => {
+        inputTermo.style.height = 'auto';
+        inputTermo.style.height = inputTermo.scrollHeight + 'px';
+        inputTraducao.style.height = 'auto';
+        inputTraducao.style.height = inputTraducao.scrollHeight + 'px';
+    }, 10);
 }
 
 window.fecharModal = function() { 

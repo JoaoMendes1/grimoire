@@ -53,16 +53,16 @@
                 </h3>
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 mb-2 uppercase">Inglês</label>
-                        <textarea id="novo-termo" rows="1" class="input-dark w-full px-4 py-3 rounded-lg text-sm"></textarea>
+                        <label class="block text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-widest">Inglês</label>
+                        <textarea id="novo-termo" rows="1" class="input-dark w-full px-4 py-3 rounded-lg text-sm resize-none overflow-hidden" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 mb-2 uppercase">Tradução</label>
-                        <textarea id="traducao-automatica" rows="1" class="input-dark w-full px-4 py-3 rounded-lg text-sm"></textarea>
+                        <label class="block text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-widest">Tradução</label>
+                        <textarea id="traducao-automatica" rows="1" class="input-dark w-full px-4 py-3 rounded-lg text-sm resize-none overflow-hidden" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                     </div>
                     <div>
                         <div class="flex justify-between items-center mb-2">
-                            <label class="block text-[10px] font-bold text-gray-400 uppercase">Categoria</label>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Categoria</label>
                             <button type="button" onclick="abrirModalCategoria()" class="text-[#00e5ff] hover:opacity-80 transition flex items-center gap-1 text-[10px] uppercase font-bold">+ Nova</button>
                         </div>
                         <div class="custom-select-container relative">
@@ -122,16 +122,16 @@
                 </div>
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase">Inglês</label>
-                        <textarea id="novo-termo-mobile" rows="1" class="input-dark w-full px-4 py-3 rounded-lg text-sm"></textarea>
+                        <label class="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-widest">Inglês</label>
+                        <textarea id="novo-termo-mobile" rows="1" class="input-dark w-full px-4 py-3 rounded-lg text-sm resize-none overflow-hidden" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase">Tradução</label>
-                        <textarea id="traducao-mobile" rows="1" class="input-dark w-full px-4 py-3 rounded-lg text-sm"></textarea>
+                        <label class="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-widest">Tradução</label>
+                        <textarea id="traducao-mobile" rows="1" class="input-dark w-full px-4 py-3 rounded-lg text-sm resize-none overflow-hidden" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                     </div>
                     <div>
                         <div class="flex justify-between items-center mb-1.5">
-                            <label class="block text-[10px] font-bold text-gray-400 uppercase">Categoria</label>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Categoria</label>
                             <button type="button" onclick="abrirModalCategoria()" class="text-[#00e5ff] text-[10px] uppercase font-bold">+ Nova</button>
                         </div>
                         <div class="custom-select-container relative">
@@ -158,32 +158,47 @@
                         <input type="text" id="nova-categoria-nome" placeholder="Nome da Categoria..." class="input-dark w-full px-4 py-3 rounded-lg text-sm" onkeypress="if(event.key === 'Enter') salvarNovaCategoria()">
                     </div>
                     <div class="flex gap-3 mt-4">
-                        <button onclick="fecharModalCategoria()" class="w-1/2 py-3 rounded-lg font-bold text-gray-400 border border-gray-700 text-xs uppercase">Cancelar</button>
-                        <button onclick="salvarNovaCategoria()" class="w-1/2 py-3 rounded-lg font-bold text-[#05070a] bg-gradient-to-r from-[#5ee7df] to-[#b490ca] text-xs uppercase">Salvar</button>
+                        <button onclick="fecharModalCategoria()" class="w-1/2 py-3 rounded-lg font-bold text-gray-400 border border-gray-700 text-xs uppercase tracking-widest">Cancelar</button>
+                        <button onclick="salvarNovaCategoria()" class="w-1/2 py-3 rounded-lg font-bold text-[#05070a] bg-gradient-to-r from-[#5ee7df] to-[#b490ca] text-xs uppercase tracking-widest">Salvar</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div id="modal-edicao" class="fixed inset-0 bg-[#000]/70 backdrop-blur-sm z-[60] hidden items-center justify-center p-4">
-            <div class="panel w-full max-w-lg p-6 rounded-2xl shadow-2xl border border-[#9d8bff]/30">
-                <h3 class="text-sm font-mono font-bold text-gray-200 mb-5 uppercase tracking-widest">
-                    <span class="text-gray-500">✎</span> Edição
-                </h3>
-                <div class="space-y-4">
-                    <textarea id="edit-termo" rows="1" class="input-dark w-full px-4 py-3 rounded-lg text-sm"></textarea>
-                    <textarea id="edit-traducao" rows="1" class="input-dark w-full px-4 py-3 rounded-lg text-sm"></textarea>
-                    <div class="custom-select-container relative">
-                        <input type="hidden" id="edit-categoria" value="">
-                        <div onclick="toggleDropdown('edit-categoria-dropdown')" class="input-dark w-full px-4 py-3 rounded-lg text-sm cursor-pointer flex justify-between items-center">
-                            <span id="edit-categoria-text">Carregando...</span>
-                            <i class="ph ph-caret-down"></i>
-                        </div>
-                        <div id="edit-categoria-dropdown" class="hidden absolute top-full left-0 w-full mt-2 panel border border-[#1f2937] rounded-lg z-50 max-h-40 overflow-y-auto py-1"></div>
+        <div id="modal-edicao" class="fixed inset-0 bg-[#000]/80 backdrop-blur-sm z-[60] hidden items-center justify-center p-4">
+            <div class="panel w-full max-w-lg p-6 sm:p-8 rounded-3xl shadow-2xl border border-[#1f2937]">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-sm font-mono font-bold text-gray-200 uppercase tracking-widest flex items-center gap-2">
+                        <i class="ph-fill ph-pencil-simple text-[#00e5ff] text-lg"></i> Edição
+                    </h3>
+                    <button onclick="fecharModal()" class="text-gray-500 hover:text-white transition-colors bg-[#1f2937]/30 w-8 h-8 rounded-full flex items-center justify-center">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+                <div class="space-y-5">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-widest">Inglês</label>
+                        <textarea id="edit-termo" rows="1" class="input-dark w-full px-4 py-3.5 rounded-xl text-sm resize-none overflow-hidden" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                     </div>
-                    <div class="flex gap-3 pt-2">
-                        <button onclick="fecharModal()" class="w-1/3 py-3 rounded-lg font-bold text-gray-400 border border-gray-700 text-xs uppercase">Cancelar</button>
-                        <button onclick="salvarEdicao()" class="w-2/3 py-3 rounded-lg font-bold text-[#05070a] bg-[#9d8bff] text-xs uppercase">Atualizar</button>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-widest">Tradução</label>
+                        <textarea id="edit-traducao" rows="1" class="input-dark w-full px-4 py-3.5 rounded-xl text-sm resize-none overflow-hidden" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-widest">Categoria</label>
+                        <div class="custom-select-container relative">
+                            <input type="hidden" id="edit-categoria" value="">
+                            <div onclick="toggleDropdown('edit-categoria-dropdown')" class="input-dark w-full px-4 py-3.5 rounded-xl text-sm cursor-pointer flex justify-between items-center">
+                                <span id="edit-categoria-text">Carregando...</span>
+                                <i class="ph ph-caret-down"></i>
+                            </div>
+                            <div id="edit-categoria-dropdown" class="hidden absolute top-full left-0 w-full mt-2 panel border border-[#1f2937] rounded-xl z-50 max-h-40 overflow-y-auto py-1"></div>
+                        </div>
+                    </div>
+                    <div class="pt-2 mt-2">
+                        <button onclick="salvarEdicao()" class="w-full py-4 rounded-xl font-bold text-[#05070a] bg-gradient-to-r from-[#5ee7df] to-[#b490ca] hover:opacity-90 transition-opacity text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(94,231,223,0.3)]">
+                            <i class="ph-fill ph-check-circle inline-block mr-1"></i> Atualizar Registro
+                        </button>
                     </div>
                 </div>
             </div>
@@ -211,6 +226,6 @@
             setTimeout(() => { bg.classList.add('hidden'); bg.classList.remove('flex'); }, 300);
         }
     </script>
-    <script src="/app.js?v=13"></script>
+    <script src="/app.js?v=14"></script>
 </body>
 </html>
