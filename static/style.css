@@ -204,3 +204,30 @@ textarea {
 /* Linhas laterais de sotaque inspiradas no protótipo */
 .accent-line-teal { border-left: 3px solid var(--teal-dim); }
 .accent-line-violet { border-left: 3px solid var(--violet); }
+
+/* Linha de sotaque lateral do card */
+.accent-line-teal { border-left: 3px solid var(--teal-dim); }
+
+/* Motor de animação suave (Accordion) */
+.flashcard-reveal {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease-out, opacity 0.3s ease-out;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.flashcard-reveal > div {
+    overflow: hidden;
+}
+
+/* Estado REVELADO (Ao clicar) */
+.registro-item.revealed .flashcard-reveal {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.registro-item.revealed .hint-text {
+    display: none; /* Esconde o "Clique para revelar" */
+}
