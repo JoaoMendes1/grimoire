@@ -19,15 +19,65 @@
 
 <body class="min-h-screen p-6 md:p-10 flex flex-col items-center">
 
-    <div id="tela-login" class="flex flex-col items-center justify-center w-full max-w-md mx-auto mt-32 space-y-8">
-    <h2 class="text-3xl font-bold text-gray-100">Acesse seu Grimoire</h2>
-    <button onclick="entrarComGoogle()" class="flex items-center justify-center w-full gap-3 px-6 py-3 font-semibold text-gray-900 bg-white rounded-lg shadow-md hover:bg-gray-100 transition-colors">
-        <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-6 h-6" alt="Google">
-        Entrar com o Google
-    </button>
-</div>
+    <div id="tela-login" class="flex flex-col items-center justify-center w-full min-h-[90vh] relative z-10 px-4 overflow-hidden">
+        
+        <div class="orb orb1"></div>
+        <div class="orb orb2"></div>
 
-    <div id="tela-app" style="display:none;" class="w-full max-w-7xl">
+        <div class="drift-text" style="left:10%; animation-duration:18s; animation-delay:0s;">> initializing grimoire protocols...</div>
+        <div class="drift-text" style="left:75%; animation-duration:22s; animation-delay:4s;">> connection secured.</div>
+        <div class="drift-text" style="left:25%; animation-duration:25s; animation-delay:8s;">> fetching vocabulary database...</div>
+        <div class="drift-text" style="left:65%; animation-duration:19s; animation-delay:12s;">> decrypting target language...</div>
+
+        <div class="w-full flex flex-col items-center justify-center mb-10 animate-fade-up text-center relative z-10">
+            <div class="w-16 h-16 rounded-2xl bg-[#0f151d] border border-[#66fcf1]/30 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(102,252,241,0.15)] relative">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#66fcf1" viewBox="0 0 16 16">
+                    <path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H2zm.5 3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm6.5 2a.5.5 0 0 1 0-1h3a.5.5 0 0 1 0 1h-3z"/>
+                </svg>
+                <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-[#05070a] shadow-[0_0_8px_#22c55e]"></div>
+            </div>
+
+            <h1 class="text-4xl font-display font-bold leading-tight tracking-tight text-white">GRIMOIRE</h1>
+            <h2 class="text-2xl font-mono font-bold text-gray-300 mt-1 flex items-center gap-2">
+                <span class="text-[#66fcf1] animate-pulse">//</span> TERMINAL
+            </h2>
+            <p class="text-[#45a29e] font-mono text-xs tracking-[0.2em] uppercase mt-6 border-b border-gray-800 pb-2 inline-block">Acesso Restrito</p>
+        </div>
+
+        <div class="panel w-full max-w-md p-8 sm:p-10 rounded-2xl flex flex-col gap-6 relative animate-fade-up delay-100 z-10">
+            <div class="text-center mb-2">
+                <p class="text-gray-400 text-sm font-mono opacity-80">Conexão criptografada necessária para acessar os registros de exploração no terminal central.</p>
+            </div>
+
+            <button id="btn-login-ui" onclick="iniciarLoginAnimado(this)" class="w-full relative overflow-hidden rounded-xl bg-white text-[#05070a] h-14 flex items-center justify-center gap-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_25px_rgba(102,252,241,0.25)] border border-transparent">
+                <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="shrink-0 google-logo">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                <span class="font-bold text-[14px] tracking-wide">Continuar com o Google</span>
+            </button>
+
+            <div class="flex items-center gap-4 mt-2">
+                <div class="h-px bg-gray-800 flex-1"></div>
+                <span class="font-mono text-[10px] text-gray-500 tracking-widest">SESSÃO PRIVADA</span>
+                <div class="h-px bg-gray-800 flex-1"></div>
+            </div>
+
+            <div class="font-mono text-xs text-center text-gray-500 mt-2 flex items-center justify-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-[#66fcf1] animate-pulse shadow-[0_0_8px_#66fcf1]"></div>
+                Conexão Segura Ativa
+            </div>
+        </div>
+
+        <footer class="absolute bottom-6 w-full text-center animate-fade-up delay-200 z-10">
+            <div class="font-mono text-[10px] text-[#66fcf1] opacity-60 tracking-widest uppercase">
+                <span id="terminal-status" class="cursor-blink">> Status: Aguardando Autenticação</span>
+            </div>
+        </footer>
+    </div>
+    <div id="tela-app" style="display:none;" class="w-full max-w-7xl relative z-20">
         <header class="scan-header">
             <div class="logo-block">
                 <h1 data-text="// TERMINAL VOCAB">
@@ -43,7 +93,7 @@
         </header>
 
         <div class="flex flex-col lg:flex-row gap-8">
-            <aside class="panel p-6 rounded-xl w-full lg:w-1/3 h-fit sticky top-6">
+            <aside class="panel p-6 rounded-xl w-full lg:w-1/3 h-fit sticky top-6 z-10">
                 <h3 class="text-sm font-bold text-gray-300 mb-6 uppercase tracking-widest flex items-center gap-2">
                     <span class="text-[#66fcf1]">+</span> Novo Registro
                 </h3>
@@ -51,21 +101,29 @@
                 <div class="space-y-5">
                     <div>
                         <label class="block text-[11px] font-bold text-gray-400 mb-2 uppercase tracking-wide">Termo Detectado (Inglês)</label>
-                        <textarea id="novo-termo" rows="1" placeholder="Ex: Target..." class="input-dark w-full px-4 py-3 rounded-lg text-sm" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
+                        <textarea id="novo-termo" rows="1" placeholder="Digite em Inglês..." class="input-dark w-full px-4 py-3 rounded-lg text-sm" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
                     </div>
 
                     <div>
                         <label class="block text-[11px] font-bold text-gray-400 mb-2 uppercase tracking-wide">Tradução Decodificada</label>
-                        <textarea id="traducao-automatica" rows="1" placeholder="Tradução aparecerá aqui..." class="input-dark w-full px-4 py-3 rounded-lg text-sm text-gray-400 bg-[#1f2833]" readonly></textarea>
+                        <textarea id="traducao-automatica" rows="1" placeholder="Ou digite a Tradução aqui..." class="input-dark w-full px-4 py-3 rounded-lg text-sm" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
                     </div>
 
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-400 mb-2 uppercase tracking-wide">Categoria de Dados</label>
-                        <select id="categoria" class="input-dark w-full px-4 py-3 rounded-lg text-sm">
-                            <option>Combate / Skill</option>
-                            <option>Lore / História</option>
-                            <option>Interface (UI)</option>
-                        </select>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">Categoria de Dados</label>
+                            <button onclick="abrirModalCategoria()" class="text-[#66fcf1] hover:text-[#9d8bff] transition flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold" title="Criar Nova Categoria">+ Nova</button>
+                        </div>
+                        
+                        <div class="custom-select-container relative">
+                            <input type="hidden" id="categoria" value="">
+                            <div id="categoria-display" onclick="toggleDropdown('categoria-dropdown')" class="input-dark w-full px-4 py-3 rounded-lg text-sm cursor-pointer flex justify-between items-center select-none">
+                                <span id="categoria-text">Carregando...</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></svg>
+                            </div>
+                            <div id="categoria-dropdown" class="hidden absolute top-full left-0 w-full mt-2 panel border border-[#45a29e]/30 rounded-lg shadow-2xl z-50 max-h-48 overflow-y-auto py-1">
+                            </div>
+                        </div>
                     </div>
 
                     <button onclick="salvarPalavra()" class="btn-primary w-full py-4 rounded-lg mt-2 flex justify-center items-center gap-3 uppercase tracking-wider text-xs">
@@ -75,14 +133,99 @@
                 </div>
             </aside>
 
-            <main class="w-full lg:w-2/3 flex flex-col gap-6">
+            <main class="w-full lg:w-2/3 flex flex-col gap-6 z-0">
                 <input type="text" id="campo-busca" oninput="filtrarLista(this.value)" placeholder="Buscar no banco de dados..." class="panel input-dark w-full px-5 py-4 rounded-xl text-sm">
                 <div id="lista-palavras" class="flex flex-col gap-4"></div>
             </main>
         </div>
+
+        <div id="modal-edicao" class="fixed inset-0 bg-[#05070a]/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+            <div class="panel w-full max-w-lg p-6 sm:p-8 rounded-xl shadow-2xl border border-[#9d8bff]/30 relative">
+                <h3 class="text-lg font-bold text-gray-200 mb-6 flex items-center gap-2 tracking-widest uppercase">
+                    <span class="text-[#9d8bff]">✎</span> Modo de Edição
+                </h3>
+                
+                <div class="space-y-5">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 mb-2 uppercase tracking-wide">Editar Termo (Inglês)</label>
+                        <textarea id="edit-termo" rows="1" class="input-dark w-full px-4 py-3 rounded-lg text-sm" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 mb-2 uppercase tracking-wide">Editar Tradução</label>
+                        <textarea id="edit-traducao" rows="1" class="input-dark w-full px-4 py-3 rounded-lg text-sm" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">Nova Categoria</label>
+                            <button onclick="abrirModalCategoria()" class="text-[#66fcf1] hover:text-[#9d8bff] transition flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold" title="Criar Nova Categoria">+ Nova</button>
+                        </div>
+                        
+                        <div class="custom-select-container relative">
+                            <input type="hidden" id="edit-categoria" value="">
+                            <div id="edit-categoria-display" onclick="toggleDropdown('edit-categoria-dropdown')" class="input-dark w-full px-4 py-3 rounded-lg text-sm cursor-pointer flex justify-between items-center select-none">
+                                <span id="edit-categoria-text">Carregando...</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></svg>
+                            </div>
+                            <div id="edit-categoria-dropdown" class="hidden absolute top-full left-0 w-full mt-2 panel border border-[#45a29e]/30 rounded-lg shadow-2xl z-[70] max-h-48 overflow-y-auto py-1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 mt-6 pt-4 border-t border-gray-800">
+                        <button onclick="fecharModal()" class="w-1/3 py-3 rounded-lg font-bold text-gray-400 bg-[#0b0c10] border border-gray-700 hover:text-white hover:bg-red-500/20 hover:border-red-500/50 transition text-xs uppercase tracking-wider">Cancelar</button>
+                        <button onclick="salvarEdicao()" class="w-2/3 py-3 rounded-lg font-bold text-[#05070a] bg-gradient-to-r from-[#9d8bff] to-[#66fcf1] hover:scale-[1.02] transition shadow-[0_0_15px_rgba(157,139,255,0.2)] text-xs uppercase tracking-wider">Atualizar Registro</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-categoria" class="fixed inset-0 bg-[#05070a]/90 backdrop-blur-md z-[80] hidden flex items-center justify-center p-4">
+            <div class="panel w-full max-w-sm p-6 sm:p-8 rounded-xl shadow-2xl border border-[#66fcf1]/30 relative">
+                <h3 class="text-md font-bold text-gray-200 mb-6 flex items-center gap-2 tracking-widest uppercase">
+                    <span class="text-[#66fcf1]">+</span> Nova Categoria
+                </h3>
+                
+                <div class="space-y-5">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 mb-2 uppercase tracking-wide">Nome da Categoria</label>
+                        <input type="text" id="nova-categoria-nome" placeholder="Ex: Equipamentos..." class="input-dark w-full px-4 py-3 rounded-lg text-sm" onkeypress="if(event.key === 'Enter') salvarNovaCategoria()">
+                    </div>
+
+                    <div class="flex gap-4 mt-6 pt-4 border-t border-gray-800">
+                        <button onclick="fecharModalCategoria()" class="w-1/2 py-3 rounded-lg font-bold text-gray-400 bg-[#0b0c10] border border-gray-700 hover:text-white hover:bg-red-500/20 hover:border-red-500/50 transition text-xs uppercase tracking-wider">Cancelar</button>
+                        <button onclick="salvarNovaCategoria()" class="w-1/2 py-3 rounded-lg font-bold text-[#05070a] bg-[#66fcf1] hover:scale-[1.02] transition shadow-[0_0_15px_rgba(102,252,241,0.2)] text-xs uppercase tracking-wider">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <script src="/app.js?v=3"></script>
+    <script>
+        function iniciarLoginAnimado(btn) {
+            if(btn.disabled) return;
+            btn.disabled = true;
+            
+            btn.innerHTML = `
+                <svg class="animate-spin h-5 w-5 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="font-mono tracking-wider text-gray-700 font-bold text-sm">DECODIFICANDO...</span>
+            `;
+            
+            const status = document.getElementById('terminal-status');
+            status.innerText = "> Status: Estabelecendo handshake seguro...";
+            status.classList.remove('cursor-blink');
+
+            setTimeout(() => {
+                entrarComGoogle();
+            }, 1000);
+        }
+    </script>
+    <script src="/app.js?v=9"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -92,5 +235,15 @@
             });
         }
     </script>
+    <div class="fixed bottom-4 right-4 sm:bottom-5 sm:right-6 z-[100] opacity-60 hover:opacity-100 transition-opacity duration-300 pointer-events-none sm:pointer-events-auto">
+        <div class="font-mono text-[8px] sm:text-[11px] tracking-[0.2em] text-gray-400 uppercase flex items-center gap-2 cursor-default group">
+            <span class="text-[#9d8bff] transition-colors group-hover:text-[#66fcf1]">//</span> 
+            <span>Desenvolvido por</span> 
+            <span class="font-bold text-white group-hover:text-[#66fcf1] drop-shadow-[0_0_8px_rgba(102,252,241,0.8)] transition-all">
+                João Victor Mendes
+            </span>
+            <span class="w-1.5 h-3 bg-[#66fcf1] animate-pulse ml-0.5 shadow-[0_0_5px_#66fcf1]"></span>
+        </div>
+    </div>
 </body>
 </html>

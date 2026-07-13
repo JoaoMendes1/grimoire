@@ -129,3 +129,40 @@ textarea {
     letter-spacing: 0.18em; text-transform: uppercase;
     color: var(--teal-dim); margin-top: 6px;
 }
+
+/* =========================================
+   ANIMAÇÕES E EFEITOS DA TELA DE LOGIN
+========================================= */
+
+/* Efeito de entrada suave (Fade Up) */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+    animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+}
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+
+/* Orbes Neon Flutuantes de Fundo */
+.orb { position: fixed; border-radius: 50%; filter: blur(100px); opacity: 0.15; z-index: 0; pointer-events: none; }
+.orb1 { width: 500px; height: 500px; background: radial-gradient(circle, var(--teal), transparent 70%); top: -100px; left: -100px; animation: drift1 20s ease-in-out infinite; }
+.orb2 { width: 600px; height: 600px; background: radial-gradient(circle, var(--violet), transparent 70%); bottom: -200px; right: -100px; animation: drift2 25s ease-in-out infinite alternate; }
+
+@keyframes drift1 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(100px, 100px); } }
+@keyframes drift2 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(-150px, -100px); } }
+
+/* Textos do Sistema Flutuantes (Drift Text) */
+.drift-text {
+    position: fixed; font-family: var(--font-mono); font-size: 12px;
+    color: rgba(102, 252, 241, 0.15); white-space: nowrap; z-index: 0;
+    animation: rise linear infinite;
+    pointer-events: none;
+}
+@keyframes rise {
+    0% { transform: translateY(100vh); opacity: 0; }
+    10%, 90% { opacity: 1; }
+    100% { transform: translateY(-20vh); opacity: 0; }
+}
