@@ -7,6 +7,8 @@ let idiomaOrigemAtual = [];
 let categoriasAtuais = []; 
 let palavraEmEdicaoId = null;
 let ultimoCampoEditado = null; 
+let filtroAtivo = 'Todos';
+let termoBuscaAtual = '';
 
 async function iniciarApp() {
     try {
@@ -312,57 +314,121 @@ function obterEstiloCategoria(id) {
     return estilos[(id || 0) % estilos.length];
 }
 
+function renderizarFiltros() {
+    const wrap = document.getElementById('filter-chips');
+    // Adiciona a opção "Todos" + o nome de cada categoria que existe no banco
+    const nomesCategorias = ['Todos', ...categoriasAtuais.map(c => c.name)];
+    
+    wrap.innerHTML = nomesCategorias.map(nome => {
+        const cat = categoriasAtuais.find(c => c.name === nome);
+        const estilo = nome === 'Todos' ? { corHex: '#9ca3af', bgTransparente: 'bg-gray-800/40', texto: 'text-gray-400' } : obterEstiloCategoria(cat.id);
+        const ativo = filtroAtivo === nome;
+        
+        const styleAtivo = ativo ? `background-color: ${estilo.corHex}; color: #000; border-color: transparent;` : `color: ${estilo.corHex}; border-color: rgba(255,255,255,0.1);`;
+        
+        return `<button onclick="selecionarFiltro('${nome}')" 
+                    class="whitespace-nowrap px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border transition-all ${ativo ? 'shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'hover:bg-white/5'}"
+                    style="${styleAtivo}">
+                    ${nome !== 'Todos' ? `<span class="w-1.5 h-1.5 rounded-full" style="background-color: ${ativo ? '#000' : estilo.corHex};"></span>` : ''}
+                    ${nome}
+                </button>`;
+    }).join('');
+}
+
+window.selecionarFiltro = function(nome) {
+    filtroAtivo = nome;
+    renderizarFiltros();
+    aplicarFiltrosEBuscar();
+}
+
+window.filtrarLista = function(termo) {
+    termoBuscaAtual = termo.toLowerCase();
+    aplicarFiltrosEBuscar();
+}
+
+function aplicarFiltrosEBuscar() {
+    const lista = document.getElementById('lista-palavras');
+    const emptyState = document.getElementById('empty-state');
+    lista.innerHTML = '';
+
+    // Cruza a busca em texto com a categoria clicada
+    const palavrasFiltradas = ultimaListaPalavras.filter(palavra => {
+        let nomeCat = "SEM CATEGORIA";
+        if (palavra.category_id) {
+            const catEncontrada = categoriasAtuais.find(c => c.id === palavra.category_id);
+            if (catEncontrada) nomeCat = catEncontrada.name;
+        }
+
+        const passaFiltroCat = filtroAtivo === 'Todos' || nomeCat === filtroAtivo;
+        const textoPalavra = (palavra.term + " " + palavra.translation).toLowerCase();
+        const passaBusca = !termoBuscaAtual || textoPalavra.includes(termoBuscaAtual);
+
+        return passaFiltroCat && passaBusca;
+    });
+
+    // Atualiza o Dashboard Numérico
+    document.getElementById('stat-line').textContent = `${palavrasFiltradas.length} REGISTRO${palavrasFiltradas.length !== 1 ? 'S' : ''}`;
+
+    if (palavrasFiltradas.length === 0) {
+        emptyState.classList.remove('hidden');
+        emptyState.classList.add('flex');
+        return;
+    }
+
+    emptyState.classList.add('hidden');
+    emptyState.classList.remove('flex');
+
+    // Desenha as cartas aprovadas nos filtros
+    palavrasFiltradas.forEach((palavra, index) => {
+        const id = palavra.id;
+        let nomeCategoria = "SEM CATEGORIA";
+        if (palavra.category_id) {
+            const cat = categoriasAtuais.find(c => c.id === palavra.category_id);
+            if (cat) nomeCategoria = cat.name;
+        }
+
+        const estilo = obterEstiloCategoria(palavra.category_id);
+
+        lista.innerHTML += `
+            <div class="registro-item panel p-5 pl-6 sm:p-6 sm:pl-7 rounded-2xl flex flex-col relative overflow-hidden bg-[#0d131f]/80 hover:bg-[#141b2d] transition-all cursor-pointer group shadow-sm hover:shadow-md border border-[#1f2937]/50" onclick="this.classList.toggle('revealed')">
+                
+                <div class="absolute left-0 top-0 bottom-0 w-1 opacity-80" style="background-color: ${estilo.corHex};"></div>
+
+                <div class="flex justify-between items-start mb-3">
+                    <span class="text-[9px] font-bold ${estilo.texto} uppercase tracking-wider px-2.5 py-1 rounded-md flex items-center gap-1.5 ${estilo.bgTransparente}">
+                        <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${estilo.corHex};"></span>
+                        ${nomeCategoria}
+                    </span>
+                    
+                    <div class="flex items-center gap-3 text-gray-500 opacity-60 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
+                        <button onclick="tocarAudio(this, ${index})" class="hover:text-[#66fcf1] transition-colors p-1" title="Ouvir"><i class="ph-fill ph-speaker-high text-lg"></i></button>
+                        <button onclick="prepararEdicao(${index})" class="hover:text-white transition-colors p-1" title="Editar"><i class="ph-fill ph-pencil-simple text-lg"></i></button>
+                        <button onclick="excluirPalavra(${id})" class="hover:text-red-400 transition-colors p-1" title="Excluir"><i class="ph-fill ph-trash text-lg"></i></button>
+                        <i class="ph ph-caret-down chevron text-sm ml-1 text-gray-400"></i>
+                    </div>
+                </div>
+                
+                <h3 class="text-[17px] sm:text-lg font-semibold text-white leading-relaxed pr-2">${palavra.term || ""}</h3>
+                
+                <div class="flashcard-reveal">
+                    <div>
+                        <div class="h-px w-full bg-[#1f2937] my-4 relative">
+                            <div class="absolute left-0 top-0 h-full w-12" style="background: linear-gradient(90deg, ${estilo.corHex}, transparent);"></div>
+                        </div>
+                        <p class="text-sm sm:text-[15px] text-gray-400 leading-relaxed pb-1">${palavra.translation || ""}</p>
+                    </div>
+                </div>
+            </div>`;
+    });
+}
+
 async function carregarLista() {
     fetch('/api/words', { method: 'GET', headers: await getHeaders() })
     .then(res => res.json())
     .then(dados => {
         ultimaListaPalavras = dados;
-        const lista = document.getElementById('lista-palavras');
-        lista.innerHTML = ''; 
-
-        dados.forEach((palavra, index) => {
-            const id = palavra.id;
-            const termo = palavra.term || "";
-            const traducao = palavra.translation || "";
-            
-            let nomeCategoria = "SEM CATEGORIA";
-            if (palavra.category_id) {
-                const catEncontrada = categoriasAtuais.find(c => c.id === palavra.category_id);
-                if (catEncontrada) nomeCategoria = catEncontrada.name;
-            }
-
-            const estiloCat = obterEstiloCategoria(palavra.category_id);
-
-            lista.innerHTML += `
-                <div class="registro-item panel p-5 sm:p-6 rounded-xl flex flex-col relative overflow-hidden border-l-4 ${estiloCat.line} bg-[#0d131f]/80 hover:bg-[#141b2d] transition-colors cursor-pointer group" onclick="this.classList.toggle('revealed')">
-                    
-                    <div class="flex justify-between items-start mb-4">
-                        <span class="text-[9px] font-bold ${estiloCat.text} uppercase tracking-widest px-2.5 py-1 rounded-full border ${estiloCat.border} ${estiloCat.bg}">
-                            ${nomeCategoria}
-                        </span>
-                        
-                        <div class="flex items-center gap-1 sm:gap-2 opacity-50 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
-                            <button onclick="tocarAudio(this, ${index})" class="p-1.5 sm:p-2 rounded-lg text-[#66fcf1] hover:bg-[#66fcf1]/10 transition" title="Ouvir">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.536 14.01A8.473 8.473 0 0 0 14.026 8a8.473 8.473 0 0 0-2.49-6.01l-.708.707A7.476 7.476 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303l.708.707z"/><path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.483 5.483 0 0 1 11.025 8a5.483 5.483 0 0 1-1.61 3.89l.706.706z"/><path d="M8.707 11.182A4.486 4.486 0 0 0 10.025 8a4.486 4.486 0 0 0-1.318-3.182L8 5.525A3.489 3.489 0 0 1 9.025 8 3.49 3.49 0 0 1 8 10.475l.707.707zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06z"/></svg>
-                            </button>
-                            <button onclick="prepararEdicao(${index})" class="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:text-[#9d8bff] hover:bg-[#9d8bff]/10 transition" title="Editar">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
-                            </button>
-                            <button onclick="excluirPalavra(${id})" class="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition" title="Excluir">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <h4 class="text-lg sm:text-xl font-semibold text-white whitespace-pre-wrap tracking-tight leading-relaxed pr-4">${termo}</h4>
-                    
-                    <div class="flashcard-reveal">
-                        <div class="pt-3 mt-3 border-t border-white/5">
-                            <p class="text-sm sm:text-base text-gray-400 whitespace-pre-wrap leading-relaxed">${traducao}</p>
-                        </div>
-                    </div>
-                </div>`;
-        });
+        renderizarFiltros(); // Monta a barra de chips baseada nas categorias atuais
+        aplicarFiltrosEBuscar(); // Processa a tela inicial
     });
 }
 
