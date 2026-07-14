@@ -46,6 +46,26 @@ Este documento mapeia a evolução do projeto, detalhando o que já foi estabele
 - [x] **UX Mobile First:** Botão flutuante (FAB) e reformulação dos formulários em tela cheia para evitar colisão com o teclado virtual.
 - [x] **Prevenção de Falhas:** Modais de confirmação global para ações destrutivas (exclusão) e trava contra categorias duplicadas.
 
+## Fase 4.5: Dívida Técnica e Segurança (🚧 Em Planejamento)
+
+### Frontend
+- [ ] **Issue #46 - XSS em dados de usuário:** Sanitizar `term`, `translation` e nomes de
+      categoria antes de inserir via `innerHTML`; eliminar interpolação de string dentro de
+      atributos `onclick` (trocar por `data-*` + `addEventListener`).
+
+### Backend
+- [ ] **Auth JWT Local:** Substituir a chamada remota ao Supabase (`/auth/v1/user`) no
+      middleware por validação local do JWT (via JWKS), reduzindo latência e removendo
+      dependência de rede em toda requisição autenticada. (A Fase 3.5 já marcava isso como
+      concluído — na prática ainda não foi aplicado; esta issue fecha essa dívida de fato.)
+- [ ] **Índices de Banco:** Adicionar índices em `vocabularies(user_id)` e `categories(user_id)`
+      para manter performance de listagem conforme o volume de dados cresce.
+- [ ] **Rate Limiting:** Limitar as rotas `/api/translate` e `/api/audio` (proxies para serviços
+      externos) para evitar abuso e bloqueio do IP do servidor pelos provedores externos.
+
+*Nota: resolver esta fase antes da Fase 5 evita levar a mesma abordagem de auth remota e
+falta de sanitização para o motor de IA (Gemini), que vai manipular ainda mais texto livre do usuário.*
+
 ## Fase 5: Motor de Decodificação (IA) (🚀 Próximo Passo)
 - [ ] **Integração LLM:** Trocar a API de tradução comum pela API do Gemini.
 - [ ] **Auto-Correção e Contexto Inteligente:** IA corrige a grafia em inglês, traduz e formula a frase de exemplo automaticamente antes de salvar.

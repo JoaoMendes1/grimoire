@@ -15,6 +15,66 @@ let catSelecionadaMobile = null;
 let catSelecionadaEdit = null;
 let acaoConfirmacaoPendente = null;
 
+// --- UTILITÁRIOS DE SEGURANÇA ---
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// --- DELEGAÇÃO DE EVENTOS GLOBAL ---
+document.addEventListener('click', function(e) {
+    // Intercepta qualquer clique em elementos que tenham o atributo 'data-action'
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+
+    const action = btn.getAttribute('data-action');
+    
+    // Ações de Palavras
+    if (action === 'tocar-audio') {
+        e.stopPropagation(); // Evita que o card expanda ao clicar no áudio
+        tocarAudio(btn, btn.getAttribute('data-index'));
+    }
+    if (action === 'editar-palavra') {
+        e.stopPropagation();
+        prepararEdicao(btn.getAttribute('data-index'));
+    }
+    if (action === 'excluir-palavra') {
+        e.stopPropagation();
+        excluirPalavra(btn.getAttribute('data-id'));
+    }
+    
+    // Ações de Categorias (Swatches)
+    if (action === 'selecionar-categoria') {
+        const id = btn.getAttribute('data-id') === 'null' ? null : parseInt(btn.getAttribute('data-id'));
+        const origem = btn.getAttribute('data-origem');
+        if (origem === 'desktop') selecionarCatDesktop(id);
+        if (origem === 'mobile') selecionarCatMobile(id);
+        if (origem === 'edit') selecionarCatEdit(id);
+    }
+    
+    // Ações do Gerenciador de Categorias
+    if (action === 'editar-categoria') iniciarEdicaoCategoria(btn.getAttribute('data-id'));
+    if (action === 'salvar-categoria') salvarEdicaoCategoria(btn.getAttribute('data-id'));
+    if (action === 'excluir-categoria') excluirCategoria(btn.getAttribute('data-id'));
+});
+
+document.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter' && e.target.getAttribute('data-action') === 'enter-salvar-categoria') {
+        salvarEdicaoCategoria(e.target.getAttribute('data-id'));
+    }
+});
+
+// Impede que o clique nos botões expanda o card da palavra
+document.addEventListener('click', function(e) {
+    const block = e.target.closest('[data-action="stop-propagation"]');
+    if (block) e.stopPropagation();
+}, true); // Captura na fase de descida (capture phase)
+
 async function iniciarApp() {
     const res = await fetch('/api/config');
     const config = await res.json();
@@ -130,7 +190,7 @@ async function carregarCategorias() {
     atualizarSwatchesForms();
 }
 
-function renderSwatches(containerId, varSelecionada, onChangeCallback) {
+function renderSwatches(containerId, varSelecionada, origem) {
     const wrap = document.getElementById(containerId);
     if (!wrap) return;
     const lista = [{id: null, name: 'Sem Categoria'}, ...categoriasAtuais];
@@ -138,8 +198,8 @@ function renderSwatches(containerId, varSelecionada, onChangeCallback) {
         const isSel = varSelecionada == cat.id;
         const estilo = obterEstiloCategoria(cat.id, cat.name);
         const bg = isSel ? hexToRgba(estilo.corHex, 0.2) : hexToRgba(estilo.corHex, 0.05);
-        return `<button type="button" class="cat-swatch ${isSel ? 'selected' : ''} flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-full text-[11px] font-semibold" style="background:${bg}; color:${estilo.corHex};" onclick="${onChangeCallback}(${cat.id})">
-                  <span class="w-3.5 h-3.5 rounded-full inline-block" style="background:${estilo.corHex};"></span>${cat.name}
+        return `<button type="button" class="cat-swatch ${isSel ? 'selected' : ''} flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-full text-[11px] font-semibold" style="background:${bg}; color:${estilo.corHex};" data-action="selecionar-categoria" data-id="${cat.id}" data-origem="${origem}">
+                  <span class="w-3.5 h-3.5 rounded-full inline-block" style="background:${estilo.corHex};"></span>${escapeHTML(cat.name)}
                 </button>`;
     }).join('');
 }
@@ -149,9 +209,9 @@ window.selecionarCatMobile = function(id) { catSelecionadaMobile = id; atualizar
 window.selecionarCatEdit = function(id) { catSelecionadaEdit = id; atualizarSwatchesForms(); }
 
 function atualizarSwatchesForms() {
-    renderSwatches('cat-swatches-desktop', catSelecionadaDesktop, 'selecionarCatDesktop');
-    renderSwatches('cat-swatches-mobile', catSelecionadaMobile, 'selecionarCatMobile');
-    renderSwatches('cat-swatches-edit', catSelecionadaEdit, 'selecionarCatEdit');
+    renderSwatches('cat-swatches-desktop', catSelecionadaDesktop, 'desktop');
+    renderSwatches('cat-swatches-mobile', catSelecionadaMobile, 'mobile');
+    renderSwatches('cat-swatches-edit', catSelecionadaEdit, 'edit');
 }
 
 window.toggleNovaCategoriaUI = function(origem) { document.getElementById(`new-cat-row-${origem}`).classList.toggle('hidden'); }
@@ -187,19 +247,20 @@ function renderizarListaGerenciador() {
     
     container.innerHTML = categoriasAtuais.map(cat => {
         const estilo = obterEstiloCategoria(cat.id, cat.name);
+        const nomeSeguro = escapeHTML(cat.name);
         return `
             <div class="flex items-center justify-between p-3 rounded-xl bg-[#1f2937]/30 border border-[#1f2937] hover:border-[#374151] transition-colors group">
                 <div class="flex items-center gap-2 flex-1" id="cat-display-${cat.id}">
                     <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:${estilo.corHex};"></span>
-                    <span class="text-sm font-semibold text-gray-300">${cat.name}</span>
+                    <span class="text-sm font-semibold text-gray-300">${nomeSeguro}</span>
                 </div>
                 <div class="hidden flex-1 items-center gap-2" id="cat-edit-${cat.id}">
-                    <input type="text" id="cat-input-${cat.id}" value="${cat.name.replace(/"/g, '&quot;')}" class="input-dark w-full px-3 py-1.5 rounded-lg text-xs" onkeypress="if(event.key === 'Enter') salvarEdicaoCategoria(${cat.id})">
-                    <button onclick="salvarEdicaoCategoria(${cat.id})" class="text-[#00e5ff] hover:text-white p-1"><i class="ph-fill ph-check-circle text-lg"></i></button>
+                    <input type="text" id="cat-input-${cat.id}" value="${nomeSeguro}" class="input-dark w-full px-3 py-1.5 rounded-lg text-xs" data-action="enter-salvar-categoria" data-id="${cat.id}">
+                    <button data-action="salvar-categoria" data-id="${cat.id}" class="text-[#00e5ff] hover:text-white p-1"><i class="ph-fill ph-check-circle text-lg pointer-events-none"></i></button>
                 </div>
                 <div class="flex items-center gap-2 opacity-50 group-hover:opacity-100 transition-opacity ml-2" id="cat-actions-${cat.id}">
-                    <button onclick="iniciarEdicaoCategoria(${cat.id})" class="text-gray-400 hover:text-white transition-colors"><i class="ph-fill ph-pencil-simple text-base"></i></button>
-                    <button onclick="excluirCategoria(${cat.id})" class="text-gray-400 hover:text-red-500 transition-colors"><i class="ph-fill ph-trash text-base"></i></button>
+                    <button data-action="editar-categoria" data-id="${cat.id}" class="text-gray-400 hover:text-white transition-colors"><i class="ph-fill ph-pencil-simple text-base pointer-events-none"></i></button>
+                    <button data-action="excluir-categoria" data-id="${cat.id}" class="text-gray-400 hover:text-red-500 transition-colors"><i class="ph-fill ph-trash text-base pointer-events-none"></i></button>
                 </div>
             </div>`;
     }).join('');
@@ -309,25 +370,25 @@ function aplicarFiltrosEBuscar() {
         if (palavra.category_id) { const cat = categoriasAtuais.find(c => c.id === palavra.category_id); if (cat) nomeCategoria = cat.name; }
         const estilo = obterEstiloCategoria(palavra.category_id, nomeCategoria !== "Sem Categoria" ? nomeCategoria : "");
 
-        lista.innerHTML += `
+       lista.innerHTML += `
             <div class="registro-item panel p-5 pl-6 sm:p-6 sm:pl-7 rounded-2xl flex flex-col relative overflow-hidden transition-all cursor-pointer group border border-[#1f2937]/50" onclick="this.classList.toggle('revealed')">
                 <div class="absolute left-0 top-0 bottom-0 w-1 opacity-80" style="background-color: ${estilo.corHex};"></div>
                 <div class="flex justify-between items-start mb-3">
                     <span class="text-[9px] font-bold ${estilo.texto} uppercase tracking-wider px-2.5 py-1 rounded-full border flex items-center gap-1.5" style="border-color:${hexToRgba(estilo.corHex,0.3)}; background:${hexToRgba(estilo.corHex,0.1)};">
-                        ${nomeCategoria}
+                        ${escapeHTML(nomeCategoria)}
                     </span>
-                    <div class="flex items-center gap-3 text-gray-500 opacity-60 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
-                        <button onclick="tocarAudio(this, ${index})" class="btn-audio hover:text-[#00e5ff] p-1 transition-colors"><i class="ph-fill ph-speaker-high text-lg"></i></button>
-                        <button onclick="prepararEdicao(${index})" class="hover:text-white p-1 transition-colors"><i class="ph-fill ph-pencil-simple text-lg"></i></button>
-                        <button onclick="excluirPalavra(${palavra.id})" class="hover:text-red-500 p-1 transition-colors"><i class="ph-fill ph-trash text-lg"></i></button>
-                        <i class="ph ph-caret-down chevron text-sm ml-1 text-gray-400"></i>
+                    <div class="flex items-center gap-3 text-gray-500 opacity-60 group-hover:opacity-100 transition-opacity" data-action="stop-propagation">
+                        <button data-action="tocar-audio" data-index="${index}" class="btn-audio hover:text-[#00e5ff] p-1 transition-colors"><i class="ph-fill ph-speaker-high text-lg pointer-events-none"></i></button>
+                        <button data-action="editar-palavra" data-index="${index}" class="hover:text-white p-1 transition-colors"><i class="ph-fill ph-pencil-simple text-lg pointer-events-none"></i></button>
+                        <button data-action="excluir-palavra" data-id="${palavra.id}" class="hover:text-red-500 p-1 transition-colors"><i class="ph-fill ph-trash text-lg pointer-events-none"></i></button>
+                        <i class="ph ph-caret-down chevron text-sm ml-1 text-gray-400 pointer-events-none"></i>
                     </div>
                 </div>
-                <h3 class="text-[15px] sm:text-[17px] font-semibold text-white leading-snug pr-2">${palavra.term || ""}</h3>
+                <h3 class="text-[15px] sm:text-[17px] font-semibold text-white leading-snug pr-2">${escapeHTML(palavra.term || "")}</h3>
                 <div class="flashcard-reveal">
                     <div>
                         <div class="h-px w-full bg-[#1f2937] my-3 relative"><div class="absolute left-0 top-0 h-full w-12" style="background: linear-gradient(90deg, ${estilo.corHex}, transparent);"></div></div>
-                        <p class="text-[13px] sm:text-[14px] text-gray-400 leading-relaxed pb-1">${palavra.translation || ""}</p>
+                        <p class="text-[13px] sm:text-[14px] text-gray-400 leading-relaxed pb-1">${escapeHTML(palavra.translation || "")}</p>
                     </div>
                 </div>
             </div>`;
