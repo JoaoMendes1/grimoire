@@ -15,66 +15,6 @@ let catSelecionadaMobile = null;
 let catSelecionadaEdit = null;
 let acaoConfirmacaoPendente = null;
 
-// --- UTILITÁRIOS DE SEGURANÇA ---
-function escapeHTML(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-// --- DELEGAÇÃO DE EVENTOS GLOBAL ---
-document.addEventListener('click', function(e) {
-    // Intercepta qualquer clique em elementos que tenham o atributo 'data-action'
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-
-    const action = btn.getAttribute('data-action');
-    
-    // Ações de Palavras
-    if (action === 'tocar-audio') {
-        e.stopPropagation(); // Evita que o card expanda ao clicar no áudio
-        tocarAudio(btn, btn.getAttribute('data-index'));
-    }
-    if (action === 'editar-palavra') {
-        e.stopPropagation();
-        prepararEdicao(btn.getAttribute('data-index'));
-    }
-    if (action === 'excluir-palavra') {
-        e.stopPropagation();
-        excluirPalavra(btn.getAttribute('data-id'));
-    }
-    
-    // Ações de Categorias (Swatches)
-    if (action === 'selecionar-categoria') {
-        const id = btn.getAttribute('data-id') === 'null' ? null : parseInt(btn.getAttribute('data-id'));
-        const origem = btn.getAttribute('data-origem');
-        if (origem === 'desktop') selecionarCatDesktop(id);
-        if (origem === 'mobile') selecionarCatMobile(id);
-        if (origem === 'edit') selecionarCatEdit(id);
-    }
-    
-    // Ações do Gerenciador de Categorias
-    if (action === 'editar-categoria') iniciarEdicaoCategoria(btn.getAttribute('data-id'));
-    if (action === 'salvar-categoria') salvarEdicaoCategoria(btn.getAttribute('data-id'));
-    if (action === 'excluir-categoria') excluirCategoria(btn.getAttribute('data-id'));
-});
-
-document.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter' && e.target.getAttribute('data-action') === 'enter-salvar-categoria') {
-        salvarEdicaoCategoria(e.target.getAttribute('data-id'));
-    }
-});
-
-// Impede que o clique nos botões expanda o card da palavra
-document.addEventListener('click', function(e) {
-    const block = e.target.closest('[data-action="stop-propagation"]');
-    if (block) e.stopPropagation();
-}, true); // Captura na fase de descida (capture phase)
-
 async function iniciarApp() {
     const res = await fetch('/api/config');
     const config = await res.json();
@@ -314,7 +254,11 @@ function renderizarFiltros() {
         let estilo = nome === 'Todos' ? { corHex: '#9ca3af' } : (nome === 'Sem Categoria' ? obterEstiloCategoria(null) : obterEstiloCategoria(categoriasAtuais.find(c => c.name === nome)?.id, nome));
         const ativo = filtroAtivo === nome;
         const styleAtivo = ativo ? `background-color: ${estilo.corHex}; color: #000; border-color: transparent;` : `color: ${estilo.corHex}; border-color: ${nome === 'Todos' ? '#374151' : hexToRgba(estilo.corHex, 0.4)};`;
-        return `<button onclick="selecionarFiltro('${nome}')" class="whitespace-nowrap px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border transition-all ${ativo ? 'shadow-[0_0_10px_rgba(255,255,255,0.15)]' : 'hover:bg-white/5'}" style="${styleAtivo}">${nome}</button>`;
+        
+        // Sanitiza o nome para não quebrar o HTML nem executar scripts
+        const nomeSeguro = escapeHTML(nome);
+        
+        return `<button data-action="selecionar-filtro" data-nome="${nomeSeguro}" class="whitespace-nowrap px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border transition-all ${ativo ? 'shadow-[0_0_10px_rgba(255,255,255,0.15)]' : 'hover:bg-white/5'}" style="${styleAtivo}">${nomeSeguro}</button>`;
     }).join('');
 }
 window.selecionarFiltro = function(nome) { filtroAtivo = nome; renderizarFiltros(); aplicarFiltrosEBuscar(); }
