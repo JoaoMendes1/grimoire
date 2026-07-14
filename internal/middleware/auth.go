@@ -6,13 +6,41 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/MicahParks/keyfunc/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 type contextKey string
 
 const UserIDKey contextKey = "userID"
+
+var jwks *keyfunc.JWKS
+
+// InitJWKS é chamado no main.go para baixar as chaves assimétricas do Supabase
+func InitJWKS() error {
+	supabaseURL := os.Getenv("SUPABASE_URL")
+	if supabaseURL == "" {
+		return fmt.Errorf("SUPABASE_URL não definida")
+	}
+
+	jwksURL := supabaseURL + "/auth/v1/.well-known/jwks.json"
+
+	options := keyfunc.Options{
+		RefreshInterval: time.Hour,
+		RefreshTimeout:  time.Second * 10,
+	}
+
+	var err error
+	jwks, err = keyfunc.Get(jwksURL, options)
+	if err != nil {
+		return fmt.Errorf("falha ao baixar JWKS do Supabase: %w", err)
+	}
+
+	fmt.Println("✅ JWKS do Supabase carregado e armazenado em cache (Asymmetric Keys).")
+	return nil
+}
 
 func AuthSupabase(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -22,32 +50,23 @@ func AuthSupabase(next http.Handler) http.Handler {
 			return
 		}
 
-		// Extrai apenas o token, tirando o "Bearer "
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		jwtSecret := os.Getenv("SUPABASE_JWT_SECRET")
 
-		if jwtSecret == "" {
-			fmt.Println("⛔ ERRO: Variável SUPABASE_JWT_SECRET ausente.")
-			http.Error(w, "Erro interno do servidor", http.StatusInternalServerError)
+		if jwks == nil {
+			fmt.Println("⛔ ERRO: JWKS não inicializado no servidor.")
+			http.Error(w, "Erro interno", http.StatusInternalServerError)
 			return
 		}
 
-		// Faz o parsing e a validação do token usando o segredo do Supabase
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("método de assinatura inesperado: %v", token.Header["alg"])
-			}
-			return []byte(jwtSecret), nil
-		})
+		// A mágica acontece aqui: validação ultrarrápida na memória usando a chave pública (ES256/RS256)
+		token, err := jwt.Parse(tokenString, jwks.Keyfunc)
 
-		// Verifica se houve erro na leitura ou se o token está expirado/inválido
 		if err != nil || !token.Valid {
 			fmt.Println("⛔ RECUSADO: Token JWT inválido ou expirado:", err)
 			http.Error(w, "Acesso negado", http.StatusUnauthorized)
 			return
 		}
 
-		// Extrai os dados internos (claims) do token
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
 			fmt.Println("⛔ RECUSADO: Falha ao extrair claims do token.")
@@ -55,7 +74,6 @@ func AuthSupabase(next http.Handler) http.Handler {
 			return
 		}
 
-		// O Supabase guarda o ID do usuário no claim "sub" (subject)
 		userID, ok := claims["sub"].(string)
 		if !ok || userID == "" {
 			fmt.Println("⛔ RECUSADO: Falha ao ler ID (sub) do usuário.")
@@ -63,7 +81,6 @@ func AuthSupabase(next http.Handler) http.Handler {
 			return
 		}
 
-		// Repassa o ID do usuário validado para o contexto da requisição
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

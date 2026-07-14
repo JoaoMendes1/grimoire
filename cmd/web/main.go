@@ -14,7 +14,8 @@ import (
 )
 
 func main() {
-	varsCriticas := []string{"DATABASE_URL", "SUPABASE_URL", "SUPABASE_PUBLIC_KEY", "SUPABASE_JWT_SECRET"}
+	// AÇÃO 1: Voltamos para apenas 3 variáveis. O segredo JWT não é mais necessário.
+	varsCriticas := []string{"DATABASE_URL", "SUPABASE_URL", "SUPABASE_PUBLIC_KEY"}
 	for _, v := range varsCriticas {
 		if os.Getenv(v) == "" {
 			fmt.Printf("⛔ ERRO CRÍTICO: Variável de ambiente %s não definida. Servidor abortado.\n", v)
@@ -28,6 +29,12 @@ func main() {
 	if err != nil {
 		fmt.Printf("Erro crítico na base de dados: %v\n", err)
 		return
+	}
+
+	// AÇÃO 2: Baixa a chave pública do Supabase antes de liberar o servidor
+	if err := middleware.InitJWKS(); err != nil {
+		fmt.Printf("Erro crítico ao inicializar JWKS: %v\n", err)
+		os.Exit(1)
 	}
 
 	r := chi.NewRouter()
