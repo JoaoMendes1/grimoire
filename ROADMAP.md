@@ -36,15 +36,17 @@ Este documento mapeia a evolução do projeto, detalhando o que já foi estabele
 - [x] **Resiliência da Tradução:** Implementar fallback na API de tradução para evitar bloqueios.
 - [x] **Documentação:** Atualizar `README.md` refletindo o PostgreSQL, nuvem e novas variáveis de ambiente.
 
-## Fase 4: Nova Identidade, Flashcards e Edição (🔄 Em Andamento)
-- [x] **Edição de Termos:** Criar funcionalidade e interface imersiva para editar palavras via Pop-up Modal.
-- [x] **Tradução Bidirecional Inteligente:** Motor universal de auto-tradução nos modais e painéis, com proteção contra loops infinitos.
-- [x] **Gerenciamento de Categorias (UI):** Implementação de menus suspensos (dropdowns) customizados sci-fi e modal de inserção rápida.
-- [x] **Tela de Login:** Implementar a interface imersiva com animações.
-- [x] **Fundação Visual (HUD):** Aplicar tipografia tech e efeitos de vidro nos painéis.
-- [x] **Sistema de Flashcards:** Atualizar interface para cartões com animação de virar (flip) e frase de contexto.
+## Fase 4: Nova Identidade, Flashcards e Edição Premium (✅ Concluído)
+- [x] **Edição de Termos:** Funcionalidade de edição imersiva via Pop-up Modal, incluindo atualização em tempo real de áudio TTS com quebra de cache.
+- [x] **Tradução Bidirecional Inteligente:** Motor universal de auto-tradução nos modais, com auto-resize para textos longos.
+- [x] **Gerenciamento de Categorias Avançado:** Implementação de Dashboard de Categorias e substituição de dropdowns nativos por sistema dinâmico de Chips/Swatches (cores em Hash).
+- [x] **Experiência Visual e Login:** Interface imersiva com animações, orbes luminosas, tipografia tech e Empty States elegantes.
+- [x] **Sistema de Flashcards Expansíveis:** Cartões estilo "accordion" ocultando a tradução para facilitar o estudo de retenção.
+- [x] **Dashboard de Status e Filtros:** Contadores dinâmicos de registros e filtragem instantânea por múltiplas categorias.
+- [x] **UX Mobile First:** Botão flutuante (FAB) e reformulação dos formulários em tela cheia para evitar colisão com o teclado virtual.
+- [x] **Prevenção de Falhas:** Modais de confirmação global para ações destrutivas (exclusão) e trava contra categorias duplicadas.
 
-## Fase 5: Motor de Decodificação (IA)
+## Fase 5: Motor de Decodificação (IA) (🚀 Próximo Passo)
 - [ ] **Integração LLM:** Trocar a API de tradução comum pela API do Gemini.
 - [ ] **Auto-Correção e Contexto Inteligente:** IA corrige a grafia em inglês, traduz e formula a frase de exemplo automaticamente antes de salvar.
 
