@@ -45,6 +45,20 @@ func InitDB() error {
 	ALTER TABLE vocabularies ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT '';
 	ALTER TABLE vocabularies ADD COLUMN IF NOT EXISTS category_id INT REFERENCES categories(id) ON DELETE SET NULL;
 	`
+	indices := []string{
+		`CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_vocabularies_user_id ON vocabularies(user_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_vocabularies_category_id ON vocabularies(category_id);`,
+	}
+
+	for _, query := range indices {
+			_, err = DB.Exec(query)
+			if err != nil {
+				return fmt.Errorf("Erro ao criar índice: %v", err)
+			}
+	}
+
+	fmt.Println("✅ Índices de banco de dados verificados/criados com sucesso.")
 
 	_, err = DB.Exec(query)
 	if err != nil {

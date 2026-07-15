@@ -11,9 +11,14 @@ import (
 	"grimoire/internal/middleware"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Carrega as variáveis do arquivo .env localmente (no Render ele vai ignorar e usar as da nuvem)
+	godotenv.Load()
+
 	// AÇÃO 1: Voltamos para apenas 3 variáveis. O segredo JWT não é mais necessário.
 	varsCriticas := []string{"DATABASE_URL", "SUPABASE_URL", "SUPABASE_PUBLIC_KEY"}
 	for _, v := range varsCriticas {

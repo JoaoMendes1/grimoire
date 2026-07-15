@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"net/url"
 
 	"github.com/MicahParks/keyfunc/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -18,24 +19,59 @@ const UserIDKey contextKey = "userID"
 
 var jwks *keyfunc.JWKS
 
+// authTransport injeta as credenciais em todas as chamadas feitas para o Supabase
+type authTransport struct {
+	http.RoundTripper
+	apiKey string
+}
+
+func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("apikey", t.apiKey)
+	req.Header.Set("Authorization", "Bearer "+t.apiKey)
+	
+	if t.RoundTripper == nil {
+		return http.DefaultTransport.RoundTrip(req)
+	}
+	return t.RoundTripper.RoundTrip(req)
+}
+
 // InitJWKS é chamado no main.go para baixar as chaves assimétricas do Supabase
 func InitJWKS() error {
-	supabaseURL := os.Getenv("SUPABASE_URL")
-	if supabaseURL == "" {
+	rawURL := os.Getenv("SUPABASE_URL")
+	if rawURL == "" {
 		return fmt.Errorf("SUPABASE_URL não definida")
 	}
 
-	jwksURL := supabaseURL + "/auth/v1/.well-known/jwks.json"
+	// Blindagem 3: O Go isola automaticamente apenas a raiz do servidor (Scheme + Host)
+	// Isso conserta qualquer caminho extra que tenha sido colado sem querer no .env
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("falha ao ler URL do Supabase: %w", err)
+	}
+	baseURL := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
+
+	publicKey := os.Getenv("SUPABASE_PUBLIC_KEY")
+	jwksURL := baseURL + "/auth/v1/.well-known/jwks.json"
+
+	// Acopla o nosso Transportador HTTP
+	client := &http.Client{
+		Transport: &authTransport{
+			RoundTripper: http.DefaultTransport,
+			apiKey:       publicKey,
+		},
+	}
 
 	options := keyfunc.Options{
+		Client:          client,
 		RefreshInterval: time.Hour,
 		RefreshTimeout:  time.Second * 10,
 	}
 
-	var err error
-	jwks, err = keyfunc.Get(jwksURL, options)
-	if err != nil {
-		return fmt.Errorf("falha ao baixar JWKS do Supabase: %w", err)
+	// ATENÇÃO: Usando uma nova variável de erro para não sobrescrever a variável global 'jwks'
+	var getErr error
+	jwks, getErr = keyfunc.Get(jwksURL, options)
+	if getErr != nil {
+		return fmt.Errorf("falha ao baixar JWKS do Supabase: %w", getErr)
 	}
 
 	fmt.Println("✅ JWKS do Supabase carregado e armazenado em cache (Asymmetric Keys).")
