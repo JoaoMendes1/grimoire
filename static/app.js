@@ -514,30 +514,41 @@ window.tocarAudio = async function(botao, index) {
     }
 }
 // MOBILE
-window.abrirModalMobile = function() { 
-    document.getElementById('modal-mobile').classList.replace('hidden', 'flex'); 
-    document.body.style.overflow = 'hidden'; 
-    
-    // 🛑 Esconde a assinatura para ela não ser empurrada pelo teclado
+// MOBILE
+let scrollPosicaoAnterior = 0;
+
+window.abrirModalMobile = function() {
+    document.getElementById('modal-mobile').classList.replace('hidden', 'flex');
+
+    scrollPosicaoAnterior = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollPosicaoAnterior}px`;
+    document.body.style.width = '100%';
+
     const assinatura = document.getElementById('assinatura');
-    if(assinatura) assinatura.style.display = 'none'; 
+    if (assinatura) assinatura.style.display = 'none';
 }
 
-window.fecharModalMobile = function() { 
-    document.getElementById('modal-mobile').classList.replace('flex', 'hidden'); 
-    document.body.style.overflow = ''; 
-    
-    // 🟢 Devolve a assinatura para a tela principal
+window.fecharModalMobile = function() {
+    document.getElementById('modal-mobile').classList.replace('flex', 'hidden');
+
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    window.scrollTo(0, scrollPosicaoAnterior);
+
     const assinatura = document.getElementById('assinatura');
-    if(assinatura) assinatura.style.display = 'block'; 
+    if (assinatura) assinatura.style.display = 'block';
 }
 
-// 🚀 AUTOSCROLL DO TECLADO (Corrigido)
+// 🚀 AUTOSCROLL DO TECLADO
 document.querySelectorAll('#modal-mobile textarea, #modal-mobile input').forEach(campo => {
-    campo.addEventListener('focus', (e) => {
+    campo.addEventListener('focus', () => {
         setTimeout(() => {
-            // Em vez de rolar para o abismo, centraliza suavemente o campo que você tocou
-            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 300); 
+            campo.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        }, 350);
     });
 });
