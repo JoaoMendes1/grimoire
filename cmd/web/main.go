@@ -55,9 +55,13 @@ func main() {
 		})
 	})
 
-	r.With(middleware.AuthSupabase).Post("/api/translate", handlers.TranslateHandler)
-	r.With(middleware.AuthSupabase).Post("/api/audio", handlers.AudioHandler)
+	// 🛡️ ROTAS COM BLINDAGEM DUPLA (Autenticação + Rate Limiting)
+	// Protege contra flood nas APIs externas (IA e Geração de Áudio)
+	r.With(middleware.AuthSupabase, middleware.RateLimitAPI).Post("/api/translate", handlers.TranslateHandler)
+	r.With(middleware.AuthSupabase, middleware.RateLimitAPI).Post("/api/audio", handlers.AudioHandler)
 
+	// 🔒 ROTAS COM BLINDAGEM SIMPLES (Apenas Autenticação)
+	// Tráfego normal de banco de dados (CRUD)
 	r.With(middleware.AuthSupabase).Post("/api/words", handlers.SaveWordHandler)
 	r.With(middleware.AuthSupabase).Get("/api/words", handlers.ListWordsHandler)
 	r.With(middleware.AuthSupabase).Delete("/api/words/{id}", handlers.DeleteWordHandler)

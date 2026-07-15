@@ -438,7 +438,7 @@ function resetarBotaoAudio() {
     botaoAudioAtual = null; 
 }
 
-window.tocarAudio = function(botao, index) {
+window.tocarAudio = async function(botao, index) {
     const urlOriginal = ultimaListaPalavras[index].audioUrl || ""; 
     const texto = ultimaListaPalavras[index].term || "";
     
@@ -449,15 +449,47 @@ window.tocarAudio = function(botao, index) {
     
     botaoAudioAtual = botao; botaoAudioAtual.classList.add('text-[#00e5ff]'); 
     
-    if (urlOriginal && urlOriginal.startsWith('http')) { 
-        // Quebra o cache do navegador forçando-o a baixar o áudio novo após a edição
-        const urlSemCache = urlOriginal + (urlOriginal.includes('?') ? '&' : '?') + 'cb=' + new Date().getTime();
+    try {
+        // 1. O botão não toca mais direto! Ele "pede permissão" ao servidor Go primeiro.
+        const response = await fetch('/api/audio', {
+            method: 'POST',
+            headers: await getHeaders(), // Injeta o token JWT de segurança
+            body: JSON.stringify({ term: texto }) 
+        });
+
+        // 2. O Escudo em ação: Se você clicar rápido demais, o Go devolve o erro 429
+        if (response.status === 429) {
+            console.warn("🛡️ Servidor Go bloqueou a reprodução por excesso de cliques rápidos.");
+            resetarBotaoAudio(); // Desliga a cor do botão
+            return; // Aborta tudo AQUI antes de acessar o Google e tomar bloqueio de IP
+        }
+
+        if (!response.ok) throw new Error('Falha no servidor ao processar o áudio');
+
+        // 3. O Go liberou! Pegamos o JSON da resposta
+        const dadosAud = await response.json();
         
-        audioAtual = new Audio(urlSemCache); 
-        audioAtual.onended = resetarBotaoAudio; 
-        audioAtual.play().catch(() => resetarBotaoAudio()); 
-    } else { 
-        const sintese = new SpeechSynthesisUtterance(texto); sintese.lang = 'en-US'; sintese.onend = resetarBotaoAudio; window.speechSynthesis.speak(sintese); 
+        // Usamos a URL retornada pelo Go (ou a do banco de dados como garantia)
+        const urlSegura = dadosAud.audioUrl || urlDoBanco;
+
+        if (urlSegura && urlSegura.startsWith('http')) { 
+            // Quebra o cache do navegador
+            const urlSemCache = urlSegura + (urlSegura.includes('?') ? '&' : '?') + 'cb=' + new Date().getTime();
+            
+            audioAtual = new Audio(urlSemCache); 
+            audioAtual.onended = resetarBotaoAudio; 
+            audioAtual.play().catch(() => resetarBotaoAudio()); 
+        } else { 
+            // Plano B (Fallback nativo do navegador)
+            const sintese = new SpeechSynthesisUtterance(texto); 
+            sintese.lang = 'en-US'; 
+            sintese.onend = resetarBotaoAudio; 
+            window.speechSynthesis.speak(sintese); 
+        }
+
+    } catch (erro) {
+        console.error('Erro na requisição de áudio:', erro);
+        resetarBotaoAudio();
     }
 }
 
