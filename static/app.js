@@ -517,22 +517,27 @@ window.tocarAudio = async function(botao, index) {
 window.abrirModalMobile = function() { 
     document.getElementById('modal-mobile').classList.replace('hidden', 'flex'); 
     document.body.style.overflow = 'hidden'; 
+    
+    // 🛑 Esconde a assinatura para ela não ser empurrada pelo teclado
+    const assinatura = document.getElementById('assinatura');
+    if(assinatura) assinatura.style.display = 'none'; 
 }
+
 window.fecharModalMobile = function() { 
     document.getElementById('modal-mobile').classList.replace('flex', 'hidden'); 
     document.body.style.overflow = ''; 
+    
+    // 🟢 Devolve a assinatura para a tela principal
+    const assinatura = document.getElementById('assinatura');
+    if(assinatura) assinatura.style.display = 'block'; 
 }
 
-// 🚀 AUTOSCROLL DO TECLADO
-// Quando um campo ganha foco, rola o modal para mostrar o botão "Salvar"
+// 🚀 AUTOSCROLL DO TECLADO (Corrigido)
 document.querySelectorAll('#modal-mobile textarea, #modal-mobile input').forEach(campo => {
-    campo.addEventListener('focus', () => {
+    campo.addEventListener('focus', (e) => {
         setTimeout(() => {
-            const modal = document.getElementById('modal-mobile');
-            modal.scrollTo({
-                top: modal.scrollHeight,
-                behavior: 'smooth'
-            });
-        }, 350); // 350ms é o tempo médio da animação do teclado subir
+            // Em vez de rolar para o abismo, centraliza suavemente o campo que você tocou
+            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300); 
     });
 });
