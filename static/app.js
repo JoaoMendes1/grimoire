@@ -515,5 +515,12 @@ window.tocarAudio = async function(botao, index) {
 }
 
 // MOBILE
-window.abrirModalMobile = function() { document.getElementById('modal-mobile').classList.replace('hidden', 'flex'); }
-window.fecharModalMobile = function() { document.getElementById('modal-mobile').classList.replace('flex', 'hidden'); }
+// MOBILE
+window.abrirModalMobile = function() { 
+    document.getElementById('modal-mobile').classList.replace('hidden', 'flex'); 
+    document.body.style.overflow = 'hidden'; // 🔒 Congela o scroll da tela de fundo
+}
+window.fecharModalMobile = function() { 
+    document.getElementById('modal-mobile').classList.replace('flex', 'hidden'); 
+    document.body.style.overflow = ''; // 🔓 Libera a tela de fundo novamente
+}
