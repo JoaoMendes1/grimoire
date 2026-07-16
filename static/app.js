@@ -514,61 +514,23 @@ window.tocarAudio = async function(botao, index) {
     }
 }
 // MOBILE
-let scrollPosicaoAnterior = 0;
-
 window.abrirModalMobile = function() {
-    const modal = document.getElementById('modal-mobile');
-    modal.classList.replace('hidden', 'flex');
-
-    // Seu Body Lock perfeito
-    scrollPosicaoAnterior = window.scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollPosicaoAnterior}px`;
-    document.body.style.width = '100%';
+    document.getElementById('modal-mobile').classList.replace('hidden', 'flex');
+    
+    // O travamento nativo e universal do fundo
+    document.body.style.overflow = 'hidden'; 
 
     const assinatura = document.getElementById('assinatura');
     if (assinatura) assinatura.style.display = 'none';
-
-    // 🚀 Sincroniza a altura com o espaço visível livre do teclado
-    if (window.visualViewport) {
-        modal.style.height = window.visualViewport.height + 'px';
-    }
 }
 
 window.fecharModalMobile = function() {
-    const modal = document.getElementById('modal-mobile');
-    modal.classList.replace('flex', 'hidden');
-
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
-    window.scrollTo(0, scrollPosicaoAnterior);
+    document.getElementById('modal-mobile').classList.replace('flex', 'hidden');
+    
+    // Libera o fundo
+    document.body.style.overflow = ''; 
 
     const assinatura = document.getElementById('assinatura');
     if (assinatura) assinatura.style.display = 'block';
-
-    modal.style.height = '100%'; // Reseta a altura ao fechar
 }
 
-// 🚀 O SEGREDO DO TECLADO: Visual Viewport API
-// Escuta o teclado subindo/descendo e redimensiona o modal instantaneamente
-if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', () => {
-        const modal = document.getElementById('modal-mobile');
-        if (modal && !modal.classList.contains('hidden')) {
-            modal.style.height = window.visualViewport.height + 'px';
-        }
-    });
-}
-
-// 🚀 AUTOSCROLL DO TECLADO
-document.querySelectorAll('#modal-mobile textarea, #modal-mobile input').forEach(campo => {
-    campo.addEventListener('focus', () => {
-        setTimeout(() => {
-            campo.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center'
-            });
-        }, 300); // 300ms dá o tempo exato pro visualViewport calcular o teclado
-    });
-});
