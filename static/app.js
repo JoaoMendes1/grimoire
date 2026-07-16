@@ -514,12 +514,13 @@ window.tocarAudio = async function(botao, index) {
     }
 }
 // MOBILE
-// MOBILE
 let scrollPosicaoAnterior = 0;
 
 window.abrirModalMobile = function() {
-    document.getElementById('modal-mobile').classList.replace('hidden', 'flex');
+    const modal = document.getElementById('modal-mobile');
+    modal.classList.replace('hidden', 'flex');
 
+    // Seu Body Lock perfeito
     scrollPosicaoAnterior = window.scrollY;
     document.body.style.position = 'fixed';
     document.body.style.top = `-${scrollPosicaoAnterior}px`;
@@ -527,10 +528,16 @@ window.abrirModalMobile = function() {
 
     const assinatura = document.getElementById('assinatura');
     if (assinatura) assinatura.style.display = 'none';
+
+    // 🚀 Sincroniza a altura com o espaço visível livre do teclado
+    if (window.visualViewport) {
+        modal.style.height = window.visualViewport.height + 'px';
+    }
 }
 
 window.fecharModalMobile = function() {
-    document.getElementById('modal-mobile').classList.replace('flex', 'hidden');
+    const modal = document.getElementById('modal-mobile');
+    modal.classList.replace('flex', 'hidden');
 
     document.body.style.position = '';
     document.body.style.top = '';
@@ -539,6 +546,19 @@ window.fecharModalMobile = function() {
 
     const assinatura = document.getElementById('assinatura');
     if (assinatura) assinatura.style.display = 'block';
+
+    modal.style.height = '100%'; // Reseta a altura ao fechar
+}
+
+// 🚀 O SEGREDO DO TECLADO: Visual Viewport API
+// Escuta o teclado subindo/descendo e redimensiona o modal instantaneamente
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+        const modal = document.getElementById('modal-mobile');
+        if (modal && !modal.classList.contains('hidden')) {
+            modal.style.height = window.visualViewport.height + 'px';
+        }
+    });
 }
 
 // 🚀 AUTOSCROLL DO TECLADO
@@ -549,6 +569,6 @@ document.querySelectorAll('#modal-mobile textarea, #modal-mobile input').forEach
                 behavior: 'smooth',
                 block: 'center'
             });
-        }, 350);
+        }, 300); // 300ms dá o tempo exato pro visualViewport calcular o teclado
     });
 });
