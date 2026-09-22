@@ -2,25 +2,30 @@
 
 > O mapa do sistema: o que existe, por onde passa uma requisição e o que cada peça
 > faz. Escrito em 19/09/2026 a partir do código, não de memória.
+>
+> Atualizado em 22/09/2026 com a migração do Render para VPS própria.
 
 ---
 
 ## Visão geral
 
 ```
-navegador                      servidor Go (Render)           serviços externos
-─────────                      ────────────────────           ─────────────────
-index.html                     chi router
-app.js          ── JWT ──►     middleware.AuthSupabase  ──►   Supabase (JWKS)
-supabase-js     ── login ─────────────────────────────►       Supabase Auth
-                               handlers/words           ──►   Postgres (lib/pq)
-                               handlers/categories      ──►   Postgres
-                               handlers/translate       ──►   Google Translate
-                               handlers/audio           ──►   Google TTS (via URL)
+navegador          Caddy              servidor Go (container)      serviços externos
+─────────          ─────              ───────────────────────      ─────────────────
+index.html         HTTPS              chi router
+app.js          ── JWT ──────────►    middleware.AuthSupabase  ──► Supabase (JWKS)
+supabase-js     ── login ───────────────────────────────────────►  Supabase Auth
+                                      handlers/words           ──► Postgres (lib/pq)
+                                      handlers/categories      ──► Postgres
+                                      handlers/translate       ──► Google Translate
+                                      handlers/audio           ──► Google TTS (via URL)
 ```
 
 **O servidor Go faz duas coisas:** serve os arquivos estáticos e expõe a API. Não há
 template nem renderização no servidor — o `static/` é entregue como está.
+
+**O Caddy fica na frente**, detém as portas 80 e 443, emite o certificado e encaminha
+para o container pelo nome do serviço (`grimoire:8080`).
 
 ---
 
@@ -57,6 +62,12 @@ RLS ligada nas duas, sem policy — ver `DECISIONS.md` de 19/09/2026.
 
 **`status` existe com default `'Pendente'` e não é usado por nenhuma tela.** É resíduo
 de uma etiqueta removida na Fase 2, e candidato a remoção.
+
+### Conexão a partir de fora
+
+Desde a migração, o acesso administrativo ao banco (`pg_dump` do backup, por exemplo)
+usa o **Session pooler** do Supabase, na porta 5432. A conexão direta é IPv6-only e o
+endereço IPv4 dedicado é add-on pago do plano Pro.
 
 ---
 
@@ -117,11 +128,47 @@ categorias, filtro ativo, item em edição. Ver item 8 do `PITFALLS.md`.
 
 ## Deploy
 
-Servidor Go no Render, com as variáveis `DATABASE_URL`, `SUPABASE_URL` e
-`SUPABASE_PUBLIC_KEY`. O `PORT` vem do próprio Render.
+Desde 22/09/2026 o Grimoire roda em **VPS própria** (Integrator, Ubuntu 26.04 LTS), em
+container Docker, atrás do **Caddy** como proxy reverso. **O Render foi suspenso.**
 
-O `README.md` ainda cita `SUPABASE_JWT_SECRET`, que deixou de ser necessário quando a
-validação passou a ser por JWKS. **Está errado e precisa de correção.**
+| Item | Valor |
+|---|---|
+| URL | `https://grimoire.joaomendes.dev.br` |
+| Certificado | emitido e renovado sozinho pelo Caddy, via Let's Encrypt |
+| Imagem | build em duas etapas (Go → Alpine), **32 MB** |
+| Variáveis | `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLIC_KEY`, `PORT` |
 
-No free tier o serviço hiberna sem tráfego: a primeira requisição depois de um tempo
-parado demora, e o mapa do rate limit começa vazio.
+As variáveis vivem no `.env` da pasta do projeto no servidor e entram no container pelo
+`env_file` do compose. O `.env` não vai para o Git, e é copiado no backup diário.
+
+### Por que `expose` e não `ports`
+
+O container declara `expose: 8080`, não `ports`. Só o Caddy alcança a porta.
+
+Isso é deliberado: **o Docker escreve regras direto no `iptables` e fura o UFW**. Porta
+publicada com `-p` fica acessível pela internet mesmo sem regra no firewall — foi
+testado e comprovado durante a migração.
+
+### Publicar
+
+**`git push` na `main`.** Uma GitHub Action conecta na VPS por SSH e roda:
+
+```bash
+cd ~/grimoire && git pull origin main
+docker build -t grimoire .
+cd ~/infra && docker compose up -d --force-recreate grimoire
+docker image prune -f
+```
+
+O build acontece na VPS. Não há registro de imagens — decisão consciente: build de
+~90 s numa máquina ociosa não justifica a peça extra.
+
+### O que mudou em relação ao Render
+
+- **Não há mais hibernação.** O container está sempre de pé, e a primeira visita do dia
+  não demora mais.
+- **O mapa do rate limit** só zera em deploy ou restart de verdade, não a cada
+  acordada.
+- **Atualização de sistema e backup passaram a ser responsabilidade própria.** O
+  `unattended-upgrades` cuida das correções de segurança; o backup roda às 3h todo dia
+  para o Google Drive.
