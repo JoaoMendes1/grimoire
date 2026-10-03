@@ -1,824 +1,207 @@
-# ⚠️ PITFALLS.md — AniDeck
+# ⚠️ PITFALLS.md — armadilhas do Grimoire
 
-> **Para que serve:** este arquivo não ensina postura ("seja rigoroso", "investigue antes").
-> Ele lista os modos de falha que **este projeto já sofreu de verdade**, cada um com o sintoma
-> real observado e a pergunta que precisa ser respondida antes de mexer na área.
+> Cada item nasceu de algo observado neste repositório. Armadilha corrigida não é
+> apagada: recebe a marcação de resolvida, com a data, para o raciocínio continuar
+> disponível.
 >
-> **Para a IA que está lendo isto:** cada item abaixo tem uma **pergunta obrigatória**. Se a
-> sua tarefa toca a área do item, responda a pergunta explicitamente na resposta — com o
-> arquivo real na mão, não de memória. Se não tiver o arquivo, peça. Não responda "verifiquei"
-> sem mostrar de onde tirou.
->
-> Toda armadilha aqui nasceu de um bug que chegou a produção. A justificativa completa de cada
-> uma está no `DECISIONS.md`, na data indicada.
+> Aberto em 19/09/2026, a partir da leitura completa do código. Atualizado em
+> 03/10/2026: itens 1 a 3 resolvidos, itens 5, 6 e 10 revistos para a VPS, e itens 11 a
+> 13 novos, vindos da migração de 22/09.
 
 ---
 
-## 1. 🌐 Rótulos de gênero existem em DOIS IDIOMAS
+## 1. RLS ligada não é o mesmo que dado protegido
 
-**Incidente (20/08/2026):** "Fantasia" aparecia duas vezes no ranking de Afinidade — uma com 13
-animes, outra com 5.
+> ✅ **Resolvida em 19/09/2026** pelo `sql/002_rls_policies.sql`.
 
-**Causa:** gêneros chegam em inglês pelo `anime_metadata_cache` (`'Fantasy'`, vindo da AniList)
-e em português pelo `curated_animes.custom_tags` (`'Fantasia'`, digitado à mão no Painel Admin).
-O `GROUP BY` acontecia antes da tradução, então viravam duas chaves distintas.
+**Como era:** as tabelas `vocabularies` e `categories` tinham `rowsecurity = true` e
+**nenhuma policy**. Isso bloqueava o PostgREST, mas a proteção real estava só no
+`WHERE user_id = $1` de cada handler Go.
 
-**Onde mora o risco hoje:** a `genre_taxonomy` é chaveada por `raw_name`, e o seed do `sql/002`
-já cadastra os dois idiomas apontando para o mesmo `display_name_pt` — `'Fantasy'` e
-`'Fantasia'` ambos resolvem para "Fantasia". **Não assuma que só o inglês existe.**
+**Como está:** cada tabela tem uma policy de dono (`FOR ALL`, com `USING` e
+`WITH CHECK`). Um `SELECT` sem filtro pela API do Supabase devolve só as linhas de quem
+está logado.
 
-O que ainda quebra:
+**O que continua valendo:** a conexão do Go usa a `DATABASE_URL` como `postgres`, que
+**ignora RLS**. Para o backend, a policy não existe: um handler novo sem o `WHERE`
+devolve o dado de todos os usuários. A policy protege o acesso pela chave anon, que é
+pública em `/api/config`.
 
-- **A cobertura em português era parcial.** `'Harém Reverso'` ganhou entrada no `sql/032`,
-  e desde 13/09/2026 a taxonomia é editável pelo Painel (Controle → Rótulos), então a
-  cobertura deixou de depender de arquivo `sql/` novo.
-- **O campo de tags no Admin deixou de ser texto livre** (13/09/2026). O `ReorderableTags`
-  só aceita rótulo cadastrado: sugere pelo nome em português, grava o texto correspondente
-  e recusa o que não existe. Erro de digitação não entra mais por ali.
-- **Mas o import da AniList continua entrando direto.** O `aplicarAnimeNoFormulario` faz
-  `setTags(anime.genres)`, e os gêneros vêm em inglês sem passar pela validação. É daí que
-  vêm quase todos os rótulos órfãos de hoje.
-- **Desde o `sql/013`, órfão cai em `'ignorado'` e some da tela em silêncio.** A
-  `view_unmapped_labels` existe justamente para tornar isso visível, e desde o `sql/033`
-  ela cobre o catálogo inteiro, não só o deck de quem consulta.
-
-> **Pergunta obrigatória:** o rótulo desta ponta está cadastrado na `genre_taxonomy`, nos dois
-> idiomas? Consulte o BANCO, não o seed do `sql/002` — desde 13/09/2026 a tabela é editável pelo
-> Painel e as linhas criadas por lá não estão em arquivo nenhum. Rótulo ausente não aparece em
-> lugar nenhum: veja a `view_unmapped_labels` antes de concluir que "sumiu sem motivo".
-
----
-
-## 2. 🔒 Uma view no Postgres NÃO herda a RLS da tabela base
-
-**Incidente (20/08/2026):** descoberto no Postman — o endpoint de estatísticas devolvia dados de
-**dois usuários diferentes** no mesmo array.
-
-**Causa:** RLS é aplicada nas *tabelas*. Uma view roda no contexto de **quem a criou** (o owner),
-não de quem consulta. Confiar na RLS da tabela base é vazamento garantido.
-
-**Regra:** toda view que expõe dado de usuário precisa de `WHERE user_id = auth.uid()`
-**explícito**. Sem exceção, inclusive em views novas.
-
-**Atualização (31/08/2026) — a causa foi tratada, mas só nas views que já existiam.** O
-`sql/017` ligou `security_invoker = on` nas 16 views do `public`: elas passaram a rodar no
-contexto de **quem consulta**, e a RLS da tabela-base voltou a valer sozinha. O filtro explícito
-**continua em todas e não deve ser removido** — o objetivo é a mesma dupla camada do item 7.
-
-**Emenda (07/09/2026) — o gatilho disparou.** O `sql/024` criou a `anime_community_scores` sem a
-cláusula e ninguém rodou a conferência; o `sql/025` corrigiu com `ALTER VIEW`. **São 17 views
-hoje**, todas com `invoker = on`. A conferência do fim do `sql/017` não roda sozinha.
-
-**Onde mora o risco hoje:**
-
-- **View nova nasce desprotegida.** O default do Postgres continua sendo
-  `security_invoker = off`. Criar sempre com `CREATE VIEW ... WITH (security_invoker = on)`
-  **e** com o `auth.uid()` explícito.
-- **O Table Editor do Supabase omite a cláusula.** Ao exibir a definição de uma view, o painel
-  monta um `CREATE VIEW` **sem** o `WITH (security_invoker = on)` — bug conhecido do Dashboard.
-  Copiar dali, editar e rodar devolve a view para security definer, sem erro e sem aviso, e a
-  RLS cai de novo. Use `pg_get_viewdef('nome'::regclass, true)` e reescreva a cláusula à mão.
-  *Isto ainda não aconteceu aqui; está registrado porque o caminho que dispara é o mais natural
-  do painel.*
-- **Ligar o invoker exige permissão na tabela-base.** Com `security_invoker = on`, a view precisa
-  que `authenticated` tenha `SELECT` **e** policy de leitura em cada tabela que ela consulta.
-  Faltando qualquer um, a view devolve **vazio, sem erro** — troca um modo de falha silencioso
-  por outro.
-
-**Como verificar de verdade:** o estado vivo está no catálogo, não nos arquivos do `sql/`.
+Conferência:
 
 ```sql
-SELECT c.relname AS view,
-       COALESCE((SELECT option_value FROM pg_options_to_table(c.reloptions)
-                 WHERE option_name = 'security_invoker'), 'off') AS invoker
-FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE c.relkind = 'v' AND n.nspname = 'public'
-ORDER BY invoker, c.relname;
+SELECT tablename, rowsecurity FROM pg_tables
+WHERE schemaname = 'public' AND tablename IN ('vocabularies', 'categories');
+
+SELECT tablename, policyname, cmd, qual, with_check FROM pg_policies
+WHERE schemaname = 'public';
 ```
 
-E, para provar que o filtro recorta de fato, dá para **fingir ser outro usuário** dentro de uma
-transação abortada — read-only, seguro mesmo com produção e homologação no mesmo banco
-(item 11):
+## 2. `user_id` declarado `TEXT` no Go e `uuid` no banco
 
-```sql
-BEGIN;
-SET LOCAL ROLE authenticated;
-SET LOCAL request.jwt.claims = '{"sub":"<uuid-de-teste>","role":"authenticated"}';
-SELECT count(*) FROM <a_view>;   -- usuário inexistente tem que devolver 0
-ROLLBACK;
-```
+> ✅ **Tipo resolvido em 19/09/2026** pelo `sql/001_alinha_user_id.sql`. A FK continua
+> aberta.
 
-**Efeito colateral no teste:** por causa do filtro, rodar essas views no SQL Editor do
-Supabase devolve **zero linhas** — lá você é `postgres` e `auth.uid()` volta `NULL`. Parece que
-a query quebrou, mas não quebrou. Teste pelo Postman com o JWT, pela tela, ou com o bloco acima.
+**Como era:** o Go declarava `user_id TEXT` nas duas tabelas, mas `vocabularies` já
+tinha `uuid` no banco, alterado à mão. Ninguém percebeu, porque o boot não alterava
+tabela existente (item 3).
 
-> **Pergunta obrigatória:** esta view expõe dado de usuário? Tem `auth.uid()` explícito **e**
-> `security_invoker = on`? E as views que ela consulta por dentro, têm?
+**Como está:** `uuid` nas duas, e as policies comparam com `auth.uid()` sem cast.
 
----
+**O que continua de pé:**
 
-## 3. 🕐 O Postgres extrai hora em UTC — o navegador é quem sabe o fuso
+- não há FK para `auth.users`, então excluir uma conta deixa vocabulário órfão;
+- não há `ON DELETE CASCADE`, e a limpeza teria que ser feita à mão;
+- `vocabularies.user_id` aceita nulo, e `categories.user_id` não.
 
-**Incidente (21/08/2026):** o gráfico de Padrão de Horário estava deslocado em 3 horas.
+## 3. `CREATE TABLE IF NOT EXISTS` não altera tabela existente
 
-**Causa:** `EXTRACT(HOUR FROM watched_at)` usa o fuso da sessão do Postgres, que no Supabase é
-UTC. Quem está em UTC−3 via o gráfico inteiro fora do lugar.
+> ✅ **Resolvida em 19/09/2026.** O `InitDB` só conecta e confere.
 
-**Regra:** conversão para hora local acontece **no navegador**, nunca no SQL. Agregações no banco
-devem ser independentes de fuso (contar intervalos, não horas absolutas).
+**Como era:** o schema era criado no `database.InitDB()`, a cada boot. Em banco vazio
+funcionava; em banco que já tinha as tabelas, **toda mudança de coluna era
+silenciosamente ignorada**, e o boot ainda anunciava "Schema e Índices verificados com
+sucesso".
 
-> **Pergunta obrigatória:** esta query extrai hora, dia ou data de um timestamp? Em qual fuso ela
-> vai rodar, e quem faz a conversão para o fuso de quem está olhando?
+**Como está:** o schema vive em `sql/`, e o `InitDB` faz `Ping` e recusa subir se faltar
+tabela.
 
----
+**O que continua valendo:** o `000_schema_inicial.sql` ainda usa `IF NOT EXISTS`, porque
+serve para recriar o banco do zero. Mudança de coluna em banco existente é sempre
+`ALTER`, num arquivo novo.
 
-## 4. ⏱️ `watched_at` grava quando foi MARCADO, não quando foi assistido
+## 4. `audio_url` é dado derivado gravado no banco
 
-**Incidente (21/08/2026):** quem cadastrava o backlog inteiro numa sentada às 23h gerava 40
-eventos noturnos, e o gráfico concluía que a pessoa era espectadora noturna.
+A URL do áudio é montada a partir do termo (`AudioHandler`) e depois **gravada** na
+linha do vocabulário.
 
-**Segundo sintoma da mesma raiz:** o recorde de "maratona mais rápida" exibia "2 eps em 0min" —
-resultado de clicar dois episódios em sequência na grade, não de uma maratona.
+Se o termo for editado e a URL não for regravada junto, o áudio continua falando a
+palavra antiga — sem erro, sem aviso. O `UpdateWordHandler` já grava os dois, então
+hoje funciona; o risco é a próxima pessoa esquecer.
 
-**Correções adotadas:** marcações separadas por menos de 2h contam como **uma sessão só**; a
-frase de insight só aparece com 10+ dias distintos de atividade; e a maratona exige 3+ episódios
-com pelo menos 5 min de intervalo médio.
+Valor derivado não deveria ser persistido: montar a URL na hora elimina a classe
+inteira de bug.
 
-> **Pergunta obrigatória:** esta métrica trata cada linha de `episode_progress` como um evento de
-> comportamento independente? O que ela conclui de um import em lote de 40 episódios em 5 minutos?
+## 5. Tradução e áudio usam endpoints internos do Google
 
----
+`translate_a/single`, `clients5.google.com/translate_a/t` e `translate_tts` não são API
+pública. Não têm contrato, não têm aviso de mudança e podem bloquear o IP do servidor.
 
-## 5. 🕳️ `NULL` × array vazio significam coisas DIFERENTES em curadoria
+O fallback na tradução e o rate limit nas rotas reduzem o dano, mas não removem a
+dependência. Qualquer um desses endpoints pode parar de responder num dia qualquer, e
+o sintoma será "a tradução parou" sem nada no log.
 
-**Convenção:** em campos de array de `curated_animes` (`custom_tags`, `custom_characters`, e os
-campos novos do Bloco 2 da Fase 6.9):
+**Desde 22/09/2026 o IP de saída é fixo** e compartilhado com os outros projetos da VPS.
+Um bloqueio do Google atinge sempre esse endereço, e derruba a tradução e o áudio até
+ser levantado.
 
-- `NULL` = **não curado** → cai para a fonte seguinte (cache → AniList)
-- array vazio `{}` = **curei e está vazio de propósito** → não cai para lugar nenhum
+## 6. O rate limit é por IP e confia no `X-Forwarded-For`
 
-O `salvarDestaque` já faz isso certo para personagens. Generalizar é item aberto do Bloco 1.
+O `RateLimitAPI` lê o primeiro IP do `X-Forwarded-For` e cai no `RemoteAddr` quando o
+header não existe.
 
-> **Pergunta obrigatória:** este código distingue "campo não preenchido" de "campo esvaziado de
-> propósito"? Um `COALESCE` genérico aqui apaga essa distinção?
+Com o Caddy na frente, o header chega com o IP de quem conectou: o Caddy descarta o
+valor mandado pelo cliente, a menos que `trusted_proxies` esteja configurado.
 
----
+Ressalvas:
 
-## 6. ➕ Precedência NÃO é soma — `COALESCE` protege, `||` fura
+- **o Go confia no header sem conferir.** Se o container um dia for publicado com
+  `ports` (item 11), o header passa a vir direto do cliente, que pode mandar um IP
+  diferente a cada requisição e escapar do limite;
+- o mapa de IPs vive em memória e zera a cada deploy ou restart;
+- vários usuários atrás do mesmo IP dividem a mesma cota.
 
-**Regra do Bloco 1 (Fase 6.9), em uma frase:** para cada campo, se o valor curado existir ele
-ganha; se estiver vazio, cai para o cache; se o cache não tiver, cai para a AniList ao vivo.
-**Nunca soma as fontes.**
+Limitar por `user_id` em vez de IP seria mais justo, já que as duas rotas são
+autenticadas. O comentário no `rate_limit.go` ainda fala do Render.
 
-**Incidente (24/08/2026, corrigido no `sql/013`):**
-`COALESCE(cur.custom_tags, c.genres, '{}') || COALESCE(c.tags, '{}')` — o `COALESCE` respeitava
-a precedência sobre `c.genres`, mas o `||` concatenava `c.tags` incondicionalmente. Sintoma: um
-anime curado com 3 tags exibiu 5+ rótulos em inglês, e "Environmental" virou o card "Gênero
-Favorito".
+## 7. Erro de terceiro devolvido como 500
 
-**A forma correta:** o `||` vai **dentro** do `COALESCE`, não por fora —
-`COALESCE(cur.custom_tags, COALESCE(c.genres,'{}') || COALESCE(c.tags,'{}'))`.
+Os handlers respondem `500` para falha de banco e para falha de API externa. Quando o
+Google recusar a tradução, o log dirá "erro interno" e o diagnóstico vai para o lado
+errado — foi exatamente esse o custo no AniDeck quando a AniList caiu.
 
-> **Pergunta obrigatória:** neste ponto o dado curado **substitui** a fonte anterior ou é
-> **somado** a ela? Tem algum `||`, `UNION` ou `array_cat` depois do `COALESCE`?
+Falha de terceiro é `503`, com o motivo no corpo.
 
----
+## 8. Estado global no `app.js`
 
-## 7. 🪪 `user_id` vem SEMPRE do JWT, nunca do payload
+Quinze variáveis `let` no topo do arquivo guardam desde a lista de palavras até qual
+campo foi editado por último. Toda função lê e escreve nelas.
 
-**Incidente (11/08/2026):** bug de IDOR que permitia transferência de posse via injeção de
-`user_id` no corpo da requisição **reapareceu** (provável restore antigo). A correção é forçar
-`entrada.UserID = userID` depois do decode.
+O efeito prático: mudar o comportamento de uma tela exige ler o arquivo inteiro para
+saber quem mais toca naquela variável.
 
-**Segunda camada:** a RLS Policy de UPDATE no Supabase precisa de
-`WITH CHECK (user_id = auth.uid())`.
+## 9. `innerHTML` com dado do usuário
 
-> **Pergunta obrigatória:** este handler lê `user_id` de algum lugar que o cliente controla?
-> Existe a segunda camada na policy, ou a defesa é só o código Go?
+Existe `escapeHTML` e ele é usado — a Issue #46 tratou disso. A armadilha é que a
+proteção depende de lembrar: qualquer `innerHTML` novo escrito sem ele reabre o
+problema, e nada no código impede.
 
----
+Regra: texto de usuário passa por `escapeHTML`, sempre.
 
-## 8. 📊 A fonte de verdade do progresso é `episode_progress`
+## 10. Log com `fmt.Println` e emoji
 
-**Incidente (20/08/2026, issue #65):** a `view_user_stats` contava o **total teórico de
-episódios** para animes "Completo" e a coluna `media_entries.progress` para o resto — coluna que
-nunca era escrita. Resultado: marcar um episódio não registrava minuto nenhum.
+O boot e os erros saem com emoji e texto livre. Em desenvolvimento é agradável; no
+`docker compose logs`, com semanas de histórico, não há como filtrar por nível nem por
+área.
 
-**Estado atual:** tempo assistido = contagem real de linhas em `episode_progress` ×
-`duration_minutes` (fallback 24 min). A coluna `media_entries.progress` **foi removida**
-(`sql/005`).
+## 11. 🧱 O Docker fura o UFW
 
-> **Pergunta obrigatória:** esta métrica deriva do que foi realmente marcado, ou do que
-> teoricamente existe?
+**Descoberto na migração (22/09/2026), testado e confirmado.** O Docker escreve regras
+direto no `iptables`, **abaixo** do UFW. Uma porta publicada com `-p` fica acessível
+pela internet mesmo sem regra nenhuma no firewall — `ufw status` continua dizendo que só
+22, 80 e 443 estão abertas, e a 8080 responde de fora.
 
----
+O firewall **parece** correto. Ninguém descobre auditando a configuração; só testando de
+fora.
 
-## 9. 🔢 A numeração de episódio 1..N é chave de fato — não renumerar
+Regra: o container do Grimoire declara `expose`, nunca `ports`. Só o Caddy publica
+porta. Aqui o risco é duplo: além de expor o Go, publicar a porta quebra a confiança no
+`X-Forwarded-For` (item 6).
 
-`episode_progress` referencia o **número** do episódio. Qualquer curadoria que reordene, insira
-ou remova episódios (`custom_episodes`, Bloco 2) dessincroniza silenciosamente o progresso já
-marcado pelos usuários. Não há erro, não há aviso — o usuário só vê episódio errado marcado.
-
-> **Pergunta obrigatória:** esta mudança altera a numeração de algum episódio já existente?
-
----
-
-## 10. 🌩️ A AniList é fonte única e já caiu duas vezes
-
-**Incidentes:** encerramento do Jikan (28/07/2026) e API da AniList desativada globalmente com
-403 (22/08/2026), derrubando Rankings, Busca, Meu Deck e Detalhes ao mesmo tempo.
-
-**Dois efeitos práticos:**
-
-- **Mapeamento de erro inconsistente:** a mesma falha virou 503 no ranking, 500 no detalhe e 502
-  no Olheiro. Falha de terceiro **nunca** deve virar 500 — 500 significa "meu código quebrou" e
-  manda o diagnóstico para o lado errado.
-- **Rate limit mudou:** a AniList reduziu de 90 para **30 requisições/minuto**, com limitador de
-  burst separado. O debounce de 400ms da busca foi calculado em cima dos 90/min — a premissa
-  mudou. O `docs/fluxo-busca.md` foi atualizado no Bloco 3 da Fase 6.9 e já reflete os 30/min.
-
-**Atualização (08/09/2026) — a queda deixou de ser evento e virou rotina.** A AniList passou
-dois dias seguidos em manutenção, e a instabilidade é estrutural: eles não são empresa, são
-comunidade, com demanda acima do que aguentam. Trate indisponibilidade como estado normal, não
-como exceção.
-
-**O Painel Admin era o único ponto sem proteção nenhuma.** O `BuscaAniList` fala direto com o
-`graphql.anilist.co` a partir do navegador, sem passar pelo Go — então nem o Kill Switch nem a
-cadeia de fallback o cobrem. Com a API fora, não havia como criar curadoria alguma. Corrigido em
-08/09/2026 com o campo manual de `mal_id` e o botão "Criar manualmente" (ver `DECISIONS.md`).
-
-**Atualização (22/09/2026) — o IP virou fixo.** Com a saída do Render, o servidor passou a ter
-endereço dedicado, compartilhado com os outros projetos da máquina. Bloqueio por rate limit
-deixou de rodar entre IPs do provedor e passa a atingir sempre o mesmo endereço — e derruba
-junto o que não tem nada a ver com a AniList. O rate limiter próprio deixou de ser precaução.
-
-> **Pergunta obrigatória:** o que este código faz quando a AniList responde 403, 429 ou timeout?
-> O usuário vê "fonte externa indisponível" ou vê "erro"?
-
----
-
-## 11. 🗄️ O `sql/` não é sistema de migrations — a ORDEM importa
-
-Os arquivos em `sql/` são numerados e aplicados **à mão** no painel do Supabase. Não há aplicação
-automática no deploy (isso exigiria credencial de owner do banco no pipeline).
-
-**Consequência:** a ordem entre deploy de código e aplicação de SQL é responsabilidade humana e
-pode quebrar. Exemplo real: o `DROP COLUMN` do `sql/005` tinha que rodar **depois** do deploy —
-a ordem inversa quebraria o insert.
-
-**Agravante:** homologação e produção **compartilham o mesmo projeto Supabase**. Não existe
-ambiente onde errar sem custo. Teste em homologação altera dado de produção.
-
-**Segundo agravante:** o repositório não sabe quais arquivos já foram aplicados. Registre a data
-de aplicação no `sql/README.md` — sem isso, você não descobre em outra máquina.
-
-**Terceiro agravante (31/08/2026, atualizado em 22/09/2026):** o plano Free do Supabase **não
-tem backup automático** — é recurso do Pro para cima. Desde 22/09 existe rotina própria rodando
-às 3h na VPS (`pg_dump` dos bancos + `rclone sync` do bucket, 30 dias de retenção no Google
-Drive), então o ponto de restauração passou a existir — **mas nunca foi restaurado**. A
-validação de 01/09 cobriu o `backup.sh` manual, não esta rotina. Até que uma restauração real
-seja executada, trate DDL destrutivo como definitivo.
-
-> **Pergunta obrigatória:** este SQL precisa rodar antes ou depois do deploy do código? É
-> reversível? Se não for, qual é o rollback?
-
----
-
-## 12. 🔁 Arquivo "idempotente" que deixou de ser
-
-**Incidente (descoberto em 24/08/2026, ainda não corrigido):** o cabeçalho do `sql/006` afirma
-que reaplicá-lo é um no-op, porque foi extraído do banco com `pg_get_viewdef`. Deixou de ser
-verdade: o `sql/008` redefiniu a `view_user_fastest_binge` com filtros de plausibilidade (3+
-episódios, 5 min de intervalo). **Reaplicar o `006` hoje reverteria essa correção** e traria de
-volta o recorde falso de "2 eps em 0min", sem erro nenhum.
-
-O mesmo vale para o `sql/003`: redefinido pelo `008`, e de novo pelo `013`.
-
-**Regra:** antes de editar ou reaplicar qualquer arquivo antigo do `sql/`, procure por
-`CREATE OR REPLACE VIEW <nome>` em **todos** os arquivos de número maior. O número mais alto é a
-definição viva — não o arquivo onde a view nasceu.
-
-**Corolário para correções:** correção de view vai sempre num arquivo **novo**, nunca editando o
-antigo. Editar o `003` para corrigir a afinidade teria revertido o tier `'ignorado'` do `008`.
-
-**Agravante desde o `sql/017`:** reaplicar um `CREATE OR REPLACE VIEW` antigo também derruba o
-`security_invoker` da view, porque nenhum arquivo anterior ao `017` traz a cláusula. A view volta
-a rodar como `postgres` sem que nada acuse (item 2).
-
-> **Pergunta obrigatória:** este objeto é redefinido em algum arquivo `sql/` de número maior?
-> Estou editando a definição viva ou uma cópia morta?
-
----
-
-## 13. 🥧 Gráfico de fatias que não cobre o denominador
-
-**Incidente (26/08/2026, issue #76):** a Distribuição por Status somava ~60% em vez de
-100%. Um pedaço escuro do donut ficava sem legenda nenhuma.
-
-**Causa:** o denominador era `total_animes` — a contagem de **todas** as entradas do deck —
-mas a `view_user_stats` só devolvia quatro dos cinco status. Os 27 animes em
-"Quero Assistir" (40% do deck) não tinham fatia nem linha na legenda. O React estava
-correto: ele não desenha um campo que nunca chega.
-
-**O que torna isso silencioso:** cada fatia individualmente estava certa, e a soma errada
-só aparece para quem para e soma. Um status novo criado no futuro reproduz o mesmo bug do
-mesmo jeito.
-
-**Detalhe de implementação que vai reaparecer:** `CREATE OR REPLACE VIEW` só permite
-acrescentar coluna **no fim**. Por isso `quero_assistir` ficou depois de
-`tempo_total_minutos`, fora da ordem lógica. Inserir no meio exige `DROP VIEW` + recriar,
-o que derruba as permissões e qualquer view que dependa dela.
-
-**Nota de estado:** não existe nenhuma entrada com status `Dropado` no banco. O `0%` na
-tela é dado real, não defeito.
-
-> **Pergunta obrigatória:** as categorias que este gráfico desenha cobrem **todas** as que
-> o denominador conta? Se eu somar as fatias, dá 100%?
-
----
-
-## 14. 🧪 Teste que valida o caminho errado depois de mudança no handler
-
-**Incidente (26/08/2026):** `TestHandleCreate_CorpoInvalido` esperava 400 e recebia 401.
-O teste montava o contexto só com `UserIDKey`, mas o handler passou a exigir também
-`TokenKey` — e cortava em 401 antes de chegar na validação do corpo.
-
-**O que torna isso silencioso:** o teste falha, mas pela razão errada. Lido rápido, parece
-bug de autenticação no handler. Na prática o handler estava certo e o teste é que ficou
-para trás.
-
-> **Pergunta obrigatória:** quando um handler ganha uma dependência nova do contexto, quais
-> testes montam esse contexto à mão e precisam acompanhar?
-
----
-
-## 15. 🔓 Policy `USING (true)` numa tabela de configuração
-
-**Incidente (28/08/2026):** a `app_settings` tinha policies de SELECT e UPDATE com
-`USING (true)`. Qualquer visitante podia reescrever a tabela com a ANON_KEY, que é pública.
-
-**O que torna isso silencioso:** RLS estava **habilitada**. O painel do Supabase mostra a
-tabela como protegida, e existem policies — elas só não restringem nada. Uma tabela sem RLS
-chama atenção; uma com RLS e policy permissiva parece resolvida.
-
-**Como foi descoberto:** por acidente. Um upsert falhou porque não havia policy de INSERT,
-e essa ausência era o único obstáculo real à escrita anônima.
-
-**Corolário (31/08/2026):** contar policies não diz nada — `USING (true)` e
-`USING (is_admin())` contam como 1 do mesmo jeito. Auditoria de permissão só vale lendo o
-predicado, ou testando com `SET LOCAL ROLE` (item 2).
-
-> **Pergunta obrigatória:** as policies desta tabela restringem alguma coisa, ou só existem?
-> Rodar `SET ROLE anon` e tentar escrever responde em 10 segundos.
-
----
-
-## 16. 0️⃣ Campo numérico ausente vira `0`, não `NULL`
-
-**Incidente (30/08/2026):** o console acusava `Encountered two children with the same key, 0`
-centenas de vezes por carregamento na tela de Detalhes.
-
-**Causa:** `custom_characters` é gravado como `{name, image, role}` — sem `id`, porque não existe
-id a informar no Painel Admin. O Go desserializa esse JSON em `[]anilist.Character`, cuja struct
-tem `ID int`. Campo ausente assume o **zero value**, então todo personagem curado sai da API com
-`id: 0`, e o `key={char.id}` da lista virava `0` repetido.
-
-**O que torna isso silencioso:** nada quebra na tela. O React apenas fica livre para reaproveitar
-o componente errado ao atualizar a lista — estado de um item aparecendo em outro. E só se
-manifesta em animes **curados**: um anime que vem direto da AniList traz ids reais e não
-reproduz.
-
-**O zero tem duas origens, e a segunda é pior.** A primeira é a curadoria não
-preencher um campo que não existe no Painel Admin. A segunda é a **própria
-AniList devolver `null`** — em Frieren, uma relação vem com `idMal: null`, e o
-`int` do Go a converte em `0` do mesmo jeito.
-
-Essa segunda causou dano real ao usuário: a tela montava `<Link to="/anime/0">`,
-e clicar levava a um `503 "Catálogo indisponível"`. Uma falha de catálogo
-aparente, por um link que nunca deveria ter existido.
-
-Ao investigar as chaves, a troca de `key={index}` por `mal_id` nas relações
-quase foi aplicada — e teria criado o mesmo bug que estava sendo consertado.
-
-**Relação com o item 5:** lá a distinção é `NULL` × array vazio no Postgres. Aqui é ausência ×
-zero value na fronteira Go → JSON. Mesma classe de erro, camada diferente: em ambas, "não tem
-valor" vira um valor que parece legítimo.
-
-Corrigido em 30/08/2026 na raiz: `Character.ID` e `RelationEntry.MalID` viraram
-`*int` com `omitempty`, então ausente sai do JSON em vez de virar `0`. O
-`key={char.id || char.name}` continua como defesa de sobra.
-
-Os outros 16 campos `int` de `internal/anilist/` foram verificados contra a API
-no ar e vêm sempre preenchidos — mas isso é observação, não garantia.
-
-**Terceira manifestação (08/09/2026), agora na gravação e não na leitura.** O
-`CuratedAnime.MalID` também é `int`, e o `HandleCreate` gravava sem validar: um
-payload sem o campo virava `mal_id = 0` no banco, silenciosamente. A única trava
-era o `if (!malId)` do formulário, contornável por requisição direta. O mesmo
-`idMal: null` da AniList chegava no `setMalId` do Painel e derrubava o
-salvamento com a mensagem errada ("Busque um anime e defina um título"),
-mandando o diagnóstico para o lado errado. Corrigido com `ValidarMalID` no
-servidor e campo editável na tela. **Aqui o `MalID` não virou ponteiro de
-propósito:** ausência de `mal_id` é erro, não "sem valor" — ponteiro deixaria
-o `nil` atravessar até o banco. A regra do item continua valendo para campo
-que pode legitimamente não existir.
-
-> **Pergunta obrigatória:** este campo numérico pode chegar ausente — porque a
-> curadoria não o preenche, ou porque a API externa manda `null`? Se puder,
-> ele precisa ser ponteiro no Go. `0` não é "sem valor": é um número válido que
-> colide com todos os outros ausentes, e vira link para `/anime/0`.
-
----
-
-## 17. 🎨 Classe do Tailwind montada por interpolação nunca é gerada
-
-**Incidente (30/08/2026):** descoberto de raspão, ao verificar o CSS compilado durante a
-tokenização das cores (#88). As classes `card-g1` a `card-g5` estavam definidas como
-`@utility` no `index.css`, mas **nenhuma das cinco aparecia no bundle**. Os cards de anime sem
-capa mostravam fundo liso desde sempre — o gradiente de fallback nunca existiu na tela.
-
-**Causa:** o Tailwind v4 varre o código-fonte procurando nomes de classe **literais** e só emite
-o utilitário para os que encontra. Os cinco pontos de uso montavam o nome por interpolação:
-
-```tsx
-gradientClass={`card-g${(index % 5) + 1}`}   // o scanner nunca vê "card-g1"
-```
-
-**O que torna isso silencioso:** absolutamente nada acusa. O TypeScript compila — é uma string
-válida. O ESLint não tem o que dizer. O build passa. A classe até **aparece no DOM**, no
-`class` do elemento, exatamente como escrita. O que não existe é a regra CSS correspondente, e
-o navegador ignora classe sem regra em silêncio. Inspecionar o elemento mostra a classe lá e
-não explica por que nada acontece.
-
-**O agravante:** o projeto **já sabia disso**. O `StatCard.tsx` tem um comentário explicando a
-mesma armadilha, escrito quando alguém tentou gerar `border-t-${cor}` e mapeou os valores
-explicitamente para contorná-la. Saber num arquivo não impediu de repetir em cinco outros —
-`MeuDeck`, `Busca`, `Calendario`, `SheetDeAnimes` e `VitrineDestaques`.
-
-**Como achar:** procurar por caractere de nome de classe colado num `${`. Uma varredura por
-`([A-Za-z][A-Za-z0-9-]*)\$\{` sobre o `client/src` encontra todos os casos. Atenção aos falsos
-positivos: interpolar a string de classe **inteira** (`` `${base} text-coral` ``, ou o retorno de
-uma função como `getCategoryTheme`) é seguro, porque o literal existe em algum arquivo varrido.
-O perigo é interpolar o **sufixo**.
-
-Corrigido em 30/08/2026: os cinco nomes passaram a viver escritos por extenso num array em
-`deckHelpers`, atrás de `gradienteDoCard(indice)`. É o que o `StatCard` já fazia.
-
-> **Pergunta obrigatória:** este nome de classe existe literal em algum arquivo que o Tailwind
-> varre? Se ele é montado com `${...}`, a regra CSS não vai existir — e nada vai te avisar.
-> Escreva os nomes por extenso num array e indexe.
-
-## 18 — `supabase_auth_admin` não enxerga o schema `public`
-
-Função Postgres usada como Auth Hook roda com o papel `supabase_auth_admin`, e esse
-papel **não tem acesso ao schema `public` por padrão**. Conceder `execute` na função
-não basta:
-
-```sql
-grant usage on schema public to supabase_auth_admin;
-grant execute on function public.minha_funcao to supabase_auth_admin;
-revoke execute on function public.minha_funcao from authenticated, anon, public;
-```
-
-E se a função lê alguma tabela com RLS, o `supabase_auth_admin` precisa passar por
-alguma policy — ele não é dono da tabela e não escapa da RLS. No caso do
-`hook_limite_cadastros` funcionou sem policy nova porque `app_settings` tem `SELECT`
-para `public` com `USING (true)`, e `public` cobre qualquer papel. Numa tabela com
-policy restritiva, o hook falharia em silêncio.
-
-**Por que dói:** hook com erro de permissão não avisa em lugar nenhum óbvio — ele
-simplesmente derruba o cadastro de todos os usuários. Por isso a função deve ser
-testada por chamada direta no SQL Editor **antes** de ser ativada no painel:
-
-```sql
-select public.hook_limite_cadastros('{"user":{"email":"teste@exemplo.com"}}'::jsonb);
-```
-
-`{}` significa liberado. Objeto com `error` significa bloqueado. Erro de permissão
-aparece aqui, onde não machuca.
-
-**Pergunta obrigatória ao mexer em Auth Hook:** o `supabase_auth_admin` tem `usage`
-no schema e passa pelas policies de toda tabela que a função lê?
-
----
-
-## 19. 🗺️ Mapa cravado no Go que duplica o que a `genre_taxonomy` já sabe
-
-**Incidente (08/09/2026):** o chip "Magia" na Busca devolvia **"Nada encontrado"**, enquanto
-"Fantasia", "Ação" e os outros funcionavam. Vários animes exibiam o selo "Magia" no próprio card
-da tela que dizia não ter achado nada.
-
-**Causa:** o `filters.ts` manda o `value` do chip, que é o termo da AniList **em inglês**
-(`{ label: 'Magia', value: 'Magic' }`). A curadoria guarda o rótulo **em português**
-(`custom_tags: ["Magia", ...]`). Quem faz a ponte é o mapa `equivalentes`, cravado no
-`search.go` — e ele **não tinha a chave `"magic"`**. Sem chave, o `mesmoRotulo` cai no
-`EqualFold("Magic", "Magia")`, dá falso, e o anime é descartado.
-
-**Não era um caso isolado: faltavam 12 das 17 chaves de tag.** `Magic`, `Demons`, `Military`,
-`Samurai`, `Seinen`, `Shoujo`, `Yuri`, `Super Power`, `Video Games`, `Boys' Love`,
-`Female Harem` e `Male Harem`. Os 17 gêneros estavam todos cobertos — só as tags foram
-esquecidas quando a lista de chips cresceu.
-
-**O que torna isso silencioso:** nada acusa. O mapa é um literal Go válido, o compilador não tem
-o que dizer, e chave ausente num `map` devolve o zero value (slice vazio) em vez de erro. O laço
-não roda, a função devolve `false`, e o anime é filtrado como se legitimamente não batesse. O
-resultado é uma tela de busca vazia, indistinguível de "não existe anime dessa tag".
-
-**O agravante que amplificou:** com a AniList fora do ar, o `HandleSearch` cai no fallback e a
-resposta passa a ser **só a curadoria**. Todo curado barrado significa zero resultados. Com a
-API no ar, os não curados apareceriam e os curados sumiriam no meio — falha parcial, ainda mais
-difícil de notar.
-
-**Chave morta é o mesmo defeito pelo avesso:** `harem`, `game`, `time travel` e `revenge`
-existiam no mapa e **nenhum chip conseguia alcançá-las**, porque o chip manda `Female Harem` e
-`Video Games`. Sobra de quando os `value` eram outros. Chave que ninguém chama não dá erro,
-então nada avisa que ela apodreceu.
-
-**Relação com o item 1:** lá a duplicação de vocabulário vive no banco, e a `genre_taxonomy`
-resolve com `raw_name` → `display_name_pt`. Aqui é a **terceira** cópia da mesma informação — a
-tabela sabe que `Magic` e `Magia` são a mesma coisa, e o mapa em Go repete isso à mão. Duas
-fontes para o mesmo fato divergem por padrão; a única dúvida é quando.
-
-Corrigido em 08/09/2026 completando as 12 chaves, com os rótulos conferidos contra
-`SELECT custom_tags FROM curated_animes` — não contra suposição do que a curadoria usaria.
-**A correção de raiz continua aberta:** derivar o mapa da `genre_taxonomy` (ver `ROADMAP.md`).
-
-> **Pergunta obrigatória:** este mapa, lista ou `switch` em Go repete informação que já vive numa
-> tabela do banco? Se sim, o que acontece quando a tabela ganhar um valor novo — alguém precisa
-> lembrar de editar o Go, e quem avisa se esquecer? Chave ausente em `map` do Go não dá erro:
-> devolve o zero value e o código segue como se a resposta fosse "não".
-
----
-
-## ✅ Parece armadilha, mas foi verificado — não reabrir
-
-> Cada item aqui já disparou suspeita numa sessão e foi checado **com o arquivo real na mão**.
-> Estão registrados para não custarem a mesma verificação de novo. **Item só entra depois de
-> verificado**, nunca por suposição — e cada um declara o que o transformaria em bug de verdade.
-
-### `anime_community_scores` não filtra por `auth.uid()` — e está certo
-
-**O que parece:** view sem filtro por usuário, com `security_invoker = on`. Pelo item 2, isso
-devolveria vazio ou dado alheio para quem consulta com JWT comum.
-
-**Por que está certo:** ela agrega a `nota` de **todos** os usuários de propósito — é o peso
-comunitário do ranking (`pesoVotoComunitario = 350`, ver `DECISIONS.md` de 07/09). O único ponto
-de leitura é `carregarVotosComunitarios()` em `internal/handlers/ranking.go`, que usa
-`database.ServiceRoleClient()`. Service role ignora RLS, então a view devolve a base inteira. É
-exatamente o caso de exceção previsto no comentário do `ServiceRoleClient` em
-`internal/database/db.go`: worker de background, a cada 12h, sem JWT para anexar.
-
-**Verificado em 08/09/2026** por `grep` de todos os pontos de uso no repositório, mais leitura da
-atribuição do client dentro da função.
-
-**O que faria virar bug de verdade:** qualquer leitura nova dessa view por `ClientWithToken`, ou
-direto do frontend pelo PostgREST. Aí ela passa a enxergar só as notas de um usuário, e o peso
-comunitário do ranking fica errado **sem erro nenhum** — o `log.Printf` de aviso ao lado só
-dispara em caso de falha, e RLS recortando linha não é falha.
-
-## 20. 📦 `omitempty` num lote enviado ao PostgREST derruba a gravação inteira
-
-**Incidente (12/09/2026):** o motor de ranking falhava em **todo** ciclo desde o
-`sql/024` com `(PGRST102) All object keys must match`. A `ranking_current_cache`
-ficou parada no seed, e o boot resiliente carregava 99 animes de semanas atrás
-achando que era o Top atual.
-
-**Causa:** o campo `LocalScore` de `currentCacheRow` era `*float64` com
-`omitempty`. Anime sem voto local deixa o ponteiro em `nil`, e `omitempty` apaga
-a chave do JSON:
-
-```jsonc
-{ "mal_id": 21,  "local_votes": 3, "local_score": 8.4 }   // com voto
-{ "mal_id": 199, "local_votes": 0 }                       // sem voto: sumiu
-```
-
-O PostgREST monta **um único** `INSERT` para a lista toda, com as colunas
-deduzidas do primeiro objeto. Conjunto de chaves diferente em qualquer objeto
-seguinte e ele recusa o lote antes de tocar no banco. Dos 500 do Top, 486 não
-tinham voto.
-
-**O que torna isso silencioso:** nada quebra. O erro só aparece no log, nenhuma
-linha é gravada (é tudo ou nada, não existe gravação parcial), e a tabela segue
-respondendo com o conteúdo antigo. O boot lê rápido e sem rede, exatamente como
-projetado — o problema é *o que* ele lê. A função de gravação só imprime em caso
-de falha, então sucesso e fracasso silencioso se parecem.
-
-**A correção é tirar o `omitempty`, nunca o `*`.** Sem o ponteiro, ausência de
-voto viraria nota `0.0` — o item 16 com outra roupa, e pior aqui, porque zero
-entraria no cálculo do peso comunitário como avaliação legítima. Com ponteiro e
-sem `omitempty`, `nil` vira `"local_score": null`, a chave existe em todos os
-objetos e o banco recebe o `NULL` que a coluna aceita.
-
-**Como verificar sem subir nada:** serializar duas linhas do lote — uma com
-valor, outra sem — e comparar os conjuntos de chaves. É o
-`TestMontarLinhasCache_ChavesIdenticas`, que só existe porque a montagem foi
-extraída do handler para `montarLinhasCache`, pelo mesmo motivo que separou o
-`calcularRankingBayesiano`.
-
-**Depois de corrigir**, a conferência é no banco, não no log:
-`count(*) FILTER (WHERE local_score = 0)` tem que ser **zero**. Qualquer número
-ali significa ponteiro perdido em algum ponto do caminho.
-
-> **Pergunta obrigatória:** este `insert`/`upsert` manda uma **lista** de objetos?
-> Algum campo da struct tem `omitempty`? Se tiver, os objetos com valor vazio vão
-> sair com menos chaves que os outros, e o PostgREST recusa o lote inteiro — no
-> log, nunca na tela.
-
----
-
----
-
-## 21. 🔀 `UPDATE` em array que reordena o que você levou horas ordenando
-
-**Incidente (13/09/2026):** a ordem das tags de 7 animes foi para ordem alfabética
-e não voltou. A ordem é prioridade editorial — a primeira tag é o selo que aparece
-no card — e não existe backup no plano Free (item 11).
-
-**Causa:** o `UPDATE` usava `array_agg(DISTINCT t)` para trocar uma tag por duas:
-
-```sql
-SET custom_tags = (SELECT array_agg(DISTINCT t) FROM unnest(...) t)
-```
-
-O `array_agg` **não preserva ordem** sem um `ORDER BY` explícito, e com `DISTINCT`
-o Postgres ordena para deduplicar. O array volta alfabético. A mesma armadilha
-mora em `array_remove(...) || ARRAY[...]`, que joga o elemento novo no fim.
-
-**O que torna isso silencioso:** o `UPDATE` reporta sucesso, o número de linhas
-afetadas está certo, e o conteúdo do array está certo — só a ordem mudou. Nada no
-banco distingue "ordem que alguém escolheu" de "ordem que saiu". Só se descobre
-olhando a tela depois.
-
-**A forma correta é trocar no lugar:**
-
-| Operação                            | Comando                         | Ordem            |
-| ----------------------------------- | ------------------------------- | ---------------- |
-| Trocar A por B                      | `array_replace(tags, 'A', 'B')` | ✅ preservada     |
-| Tirar A                             | `array_remove(tags, 'A')`       | ✅ fecha o buraco |
-| `array_agg(DISTINCT ...)`           | —                               | ❌ alfabética     |
-| `array_remove(...) \|\| ARRAY[...]` | —                               | ❌ vai para o fim |
-
-O caso de duplicata — o anime que já tem A e B, e trocar criaria B duas vezes —
-resolve com um `UPDATE` separado **antes**, removendo A só nesses. É o que a
-`renomear_tag_curadoria` do `sql/031` faz.
-
-**Corolário sobre contagem:** dois `UPDATE`s exigem dois `GET DIAGNOSTICS`. O
-`ROW_COUNT` só enxerga o último comando, e o primeiro grupo nem aparece no segundo
-`UPDATE` — o número que a tela mostra antes de confirmar viria errado, e
-confirmação com número errado não confirma nada.
-
-> **Pergunta obrigatória:** este `UPDATE` mexe num array cuja ORDEM significa
-> alguma coisa? Se mexe, ele usa `array_replace`/`array_remove`, ou reconstrói o
-> array com `array_agg`? Reconstruir reordena, e não há como desfazer.
-
----
-
-## 22. Gênero e tag são filtros diferentes na AniList
-
-`genre_in` e `tag_in` são listas separadas, e a API **não avisa quando o termo
-está na lista errada**: mandar `"Adventure"` em `tag_in` devolve `media: []`,
-com status 200.
-
-Sintoma: o scan do Olheiro roda, registra "42 candidatos" de outros rótulos e
-zero do rótulo novo. Parece catálogo esgotado, não erro.
-
-Regra: antes de filtrar, decidir por qual campo o termo vai, usando o
-`GenreCollection` e o `MediaTagCollection` da própria AniList. É o que o
-`buscarCandidatos` faz desde 19/09/2026.
-
-Conferência rápida:
-
-```bash
-curl -s https://graphql.anilist.co -H "Content-Type: application/json" \
-  -d '{"query":"{ Page(perPage:3){ media(type:ANIME, tag_in:[\"Adventure\"]){ idMal } } }"}'
-```
-
-## 23. Buscar só a primeira página esgota em semanas
-
-O `buscarCandidatos` lia 10 resultados por rótulo e descartava depois o que já
-era conhecido. Com 31 animes já julgados, os 10 primeiros de cada rótulo eram
-todos conhecidos e o scan devolvia zero — num acervo de milhares.
-
-Regra: quando a busca externa é filtrada por um estado local (já curado, já
-dispensado), o filtro tem que estar **dentro** do laço de paginação, e a busca
-precisa avançar de página até juntar o que foi pedido. Filtrar depois de uma
-página só transforma catálogo cheio em resultado vazio.
-
-## 24. 🧱 O Docker fura o UFW
-
-**Descoberto na migração (22/09/2026), testado e confirmado.** O Docker escreve regras direto no
-`iptables`, **abaixo** do UFW. Uma porta publicada com `-p` fica acessível pela internet mesmo
-sem regra nenhuma no firewall — `ufw status` continua dizendo que só 22, 80 e 443 estão abertas,
-e a 8080 responde de fora.
-
-O modo de falha é o pior tipo: o firewall **parece** correto. Ninguém descobre auditando a
-configuração; só testando de fora.
-
-Regra: container de aplicação declara `expose`, nunca `ports`. Só o Caddy publica porta, e o
-resto é alcançável apenas pela rede interna do compose.
-
-Conferência, da própria máquina não serve — tem que ser de fora:
+Conferência, de fora da máquina:
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" http://SEU_IP:8080
 ```
 
-> **Pergunta obrigatória:** este serviço precisa ser alcançável de fora, ou só pelo Caddy? Se for
-> só pelo Caddy, por que tem `ports`?
+> **Pergunta obrigatória:** este serviço precisa ser alcançável de fora, ou só pelo
+> Caddy? Se for só pelo Caddy, por que tem `ports`?
 
----
-
-## 25. ✅ Deploy verde não garante código novo
+## 12. 🟢 Deploy verde não garante código novo
 
 A Action reporta sucesso mesmo quando o `git pull` não trouxe alteração nenhuma, porque
-tecnicamente nada falhou. O `set -e` cobre comando que **quebra**, não comando que roda e não
-tem o que fazer.
+tecnicamente nada falhou. Verde diz que o processo rodou, não que ele tinha o que fazer.
 
-**Incidente (22/09/2026):** a correção do `X-Cron-Secret` foi editada, a Action passou verde, e o
-endpoint continuou respondendo 200 sem o header. O commit só tinha chegado ao GitHub **depois**
-que a Action rodou — ela publicou, corretamente, a versão anterior.
-
-Meia hora foi gasta investigando a Action, que estava certa.
+O caso típico: o commit chega ao GitHub **depois** que a Action rodou, e ela publica,
+corretamente, a versão anterior.
 
 Conferência antes de acusar o deploy:
 
 ```bash
-cd ~/anideck && git log --oneline -3
+cd ~/grimoire && git log --oneline -3
 ```
 
-Se o commit esperado não está no `HEAD` do servidor, o problema é de ordem dos acontecimentos.
+> **Pergunta obrigatória:** o commit que eu quero publicar está na `main` do GitHub
+> **antes** de a Action rodar?
 
-> **Pergunta obrigatória:** o commit que eu quero publicar está na `main` do GitHub **antes** de
-> a Action rodar? Verde diz que o processo rodou, não que ele tinha o que fazer.
+## 13. 🔑 O `.env` do servidor é uma cópia que envelhece sozinha
 
----
+O `.env` vive na pasta do projeto no servidor, não vem do Git e não é derivado de nada.
+Toda credencial rotacionada no Supabase precisa ser reescrita lá à mão.
 
-## 26. 🔑 O `.env` do servidor é uma cópia que envelhece sozinha
+**Incidente (22/09/2026):** a senha do banco foi redefinida no painel do Supabase
+durante a configuração do backup. O Grimoire continuou no ar com a conexão já aberta e
+só caiu no restart seguinte, horas depois, sem ligação aparente com o que tinha sido
+feito.
 
-O `.env` vive na pasta do projeto no servidor, não vem do Git e não é derivado de nada. Toda
-credencial rotacionada no Supabase — senha do banco, service role, chave de API — precisa ser
-reescrita lá à mão, e nada relaciona as duas pontas.
-
-**Incidente (22/09/2026):** a senha do banco foi redefinida no painel do Supabase durante a
-configuração do backup. O app continuou no ar com a conexão já estabelecida e só caiu no
-restart seguinte, com `password authentication failed for user "postgres"` — horas depois da
-causa, sem ligação aparente com o que tinha sido feito.
-
-Agravado pelo `restart: unless-stopped`: o container sobe, falha no boot, reinicia, e o log
-enche de dezenas de linhas idênticas. O `fail-fast` funcionou — o que ele não faz é dizer que a
-causa foi uma ação tomada em outro sistema.
-
-Dois `.env` no AniDeck, e eles não são intercambiáveis: o da raiz é lido pelo Go **em tempo de
-execução**; o `client/.env` é lido pelo Vite **em tempo de build**, e variável `VITE_*` faltando
-só aparece como tela em branco no navegador, sem nada no log do servidor.
+O fail-fast funcionou — o boot recusou subir. O que ele não faz é dizer que a causa foi
+uma ação tomada em outro sistema.
 
 Conferência sem expor valor:
 
 ```bash
-grep -o '^[A-Z_]*=' ~/anideck/.env
-grep -o '^[A-Z_]*=' ~/anideck/client/.env
+grep -o '^[A-Z_]*=' ~/grimoire/.env
 ```
 
-> **Pergunta obrigatória:** rotacionei credencial no Supabase? Então o `.env` do servidor já está
-> errado — e o sintoma só vai aparecer no próximo deploy.
-
----
-
-## 27. 🎛️ O painel do provedor desfaz a configuração com um clique
-
-A imagem da VPS trouxe um Nginx próprio do painel ICP, **parado** durante a migração para
-liberar as portas 80 e 443 para o Caddy.
-
-A tela de Domínios do painel exibe `NGINX: PARADO` como se fosse falha a corrigir. Iniciá-lo faz
-o Nginx disputar a porta 80 e **derruba os dois sites**. O painel também mostra `Domínios: 01`,
-porque enxerga apenas o que ele mesmo configurou — os subdomínios do Caddy não existem para ele.
-
-Duas visões da mesma máquina que não se falam, e uma delas apresenta o estado correto como
-problema.
-
-Regra: o painel serve para métricas e para reinstalar o sistema. As seções Web, Aplicações e
-Container não devem criar nada. Para desfazer a migração um dia, a ordem é parar o Caddy
-**primeiro** e só então iniciar o Nginx.
-
-> **Pergunta obrigatória:** este botão do painel mexe em porta, container ou domínio? Se mexe, a
-> configuração real está no `~/infra`, não aqui.
-
----
-
-## 🧭 Como manter este arquivo
-
-- Toda vez que um bug **silencioso** chegar a produção (não quebrou, só devolveu dado errado),
-  ele vira um item aqui — com o sintoma real observado, não com a descrição teórica.
-- Bug que quebra alto e claro **não** entra aqui. Este arquivo é sobre o que passa despercebido.
-- A justificativa longa continua no `DECISIONS.md`. Aqui fica só o gatilho e a pergunta.
-- **Armadilha corrigida é atualizada, não apagada.** Se o risco mudou de forma — como o item 1,
-  onde a cobertura de idioma passou a existir mas ficou parcial — reescreva o "onde mora o risco
-  hoje". Armadilha desatualizada é pior que armadilha ausente: manda a próxima pessoa investigar
-  um problema que não existe mais.
-- Item que deixou de ser risco de vez (código removido, coluna dropada) vira nota histórica, para
-  não ser reintroduzido por alguém que não viveu o incidente.
-- **A seção "Parece armadilha, mas foi verificado" segue regra própria.** Entra ali só o que foi
-  checado com o arquivo na mão, com a data e a forma da verificação. Suspeita registrada como se
-  fosse fato é pior que suspeita nenhuma: vira afirmação eterna que ninguém reconfere. Todo item
-  precisa declarar **o que o transformaria em bug de verdade** — sem isso ele envelhece e passa a
-  mentir.
+> **Pergunta obrigatória:** rotacionei credencial no Supabase? Então o `.env` do
+> servidor já está errado — e o sintoma só vai aparecer no próximo restart.

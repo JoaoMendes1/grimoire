@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grimoire — protótipo v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#05070a; --panel:#0c1016; --panel-2:#11161f; --line:#1e2733;
+    --text:#e8f2f1; --muted:#8a97a8; --muted-2:#5a6676;
+    --teal:#00e5ff; --violet:#9d8bff; --amber:#ffc14d; --rose:#ff5d7a; --lime:#7dffa0;
+    --display:'Chakra Petch',sans-serif; --body:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#000;color:var(--text);font-family:var(--body);-webkit-font-smoothing:antialiased}
+  body::before{content:'';position:fixed;inset:0;z-index:-2;background:var(--void)}
+  body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);background-size:32px 32px}
+  h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:.3px}
+  .mono{font-family:var(--mono)}
+
+  .app{max-width:440px;margin:0 auto;min-height:100vh;padding-bottom:92px;position:relative}
+  .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;padding:13px 16px;
+       background:color-mix(in srgb,var(--void) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .logo{font-family:var(--display);font-size:16px;font-weight:700;letter-spacing:1.4px;margin-right:auto}
+  .logo b{color:var(--teal)}
+
+  /* interruptor de modo */
+  .modo{display:flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--panel-2)}
+  .modo button{background:0;border:0;color:var(--muted-2);font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;
+               padding:6px 11px;cursor:pointer;text-transform:uppercase}
+  .modo button.on{background:linear-gradient(135deg,var(--teal),var(--violet));color:#04070c;font-weight:700}
+  .ico{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);
+       color:var(--muted);display:grid;place-items:center;cursor:pointer;font-size:13px}
+
+  /* o que só aparece em um dos modos */
+  .so-jogo{display:none}
+  body.jogo .so-jogo{display:block}
+  body.jogo .so-jogo.inline{display:inline-flex}
+  body.jogo .so-estudo{display:none}
+
+  .screen{display:none;padding:16px}
+  .screen.on{display:block;animation:f .22s ease}
+  @keyframes f{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.17em;color:var(--muted-2);text-transform:uppercase;margin:0 0 6px}
+  .eyebrow b{color:var(--teal)}
+  .ttl{font-size:19px;font-weight:600;margin-bottom:4px}
+  .sub{color:var(--muted);font-size:12.5px;line-height:1.6;margin:0 0 14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px}
+  .pad{padding:14px}
+  .mt{margin-top:12px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-radius:10px;border:0;
+       background:linear-gradient(135deg,var(--teal),var(--violet));color:#04070c;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--body)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+  .btn.block{width:100%}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;padding:4px 9px;
+        border-radius:99px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);white-space:nowrap}
+  .chip.teal{color:var(--teal);border-color:color-mix(in srgb,var(--teal) 40%,transparent);background:color-mix(in srgb,var(--teal) 10%,transparent)}
+  .chip.violet{color:var(--violet);border-color:color-mix(in srgb,var(--violet) 40%,transparent);background:color-mix(in srgb,var(--violet) 10%,transparent)}
+  .chip.amber{color:var(--amber);border-color:color-mix(in srgb,var(--amber) 40%,transparent);background:color-mix(in srgb,var(--amber) 10%,transparent)}
+  .chip.rose{color:var(--rose);border-color:color-mix(in srgb,var(--rose) 40%,transparent);background:color-mix(in srgb,var(--rose) 10%,transparent)}
+  .chip.lime{color:var(--lime);border-color:color-mix(in srgb,var(--lime) 40%,transparent);background:color-mix(in srgb,var(--lime) 10%,transparent)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat .n{font-family:var(--display);font-size:23px;font-weight:700;line-height:1}
+  .stat .l{font-family:var(--mono);font-size:9px;letter-spacing:.11em;color:var(--muted-2);text-transform:uppercase;margin-top:5px}
+  .bar{height:6px;border-radius:99px;background:var(--panel-2);overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--teal),var(--violet))}
+  .gen{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+  .gen .nm{width:96px;font-size:12px;font-weight:600;flex:0 0 auto}
+  .gen .tk{flex:1;height:8px;border-radius:99px;background:var(--panel-2);overflow:hidden}
+  .gen .tk i{display:block;height:100%;border-radius:99px}
+  .gen .pc{font-family:var(--mono);font-size:10px;color:var(--muted);width:38px;text-align:right}
+
+  /* sessão adaptativa */
+  .tempo{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .t{padding:14px 8px;border-radius:12px;border:1px solid var(--line);background:var(--panel-2);text-align:center;cursor:pointer}
+  .t b{font-family:var(--display);font-size:17px;display:block}
+  .t small{font-family:var(--mono);font-size:9.5px;color:var(--muted-2);display:block;margin-top:3px}
+  .t.on{border-color:var(--teal);background:color-mix(in srgb,var(--teal) 10%,transparent)}
+
+  /* revisão */
+  .cloze{font-size:18px;line-height:1.85;font-weight:500;text-align:center;padding:6px 0}
+  .gap{display:inline-block;min-width:84px;border-bottom:2px solid var(--teal);color:var(--teal);font-family:var(--mono);font-size:15px;cursor:pointer}
+  .gap.rev{border-bottom-color:var(--lime);color:var(--lime)}
+  .grad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+  .g{padding:11px 8px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);text-align:center;cursor:pointer;font-size:12.5px;font-weight:700}
+  .g small{display:block;font-family:var(--mono);font-size:9px;color:var(--muted-2);margin-top:3px;font-weight:400}
+  .g.err{border-color:color-mix(in srgb,var(--rose) 45%,transparent);color:var(--rose)}
+  .g.dif{border-color:color-mix(in srgb,var(--amber) 45%,transparent);color:var(--amber)}
+  .g.fac{border-color:color-mix(in srgb,var(--lime) 45%,transparent);color:var(--lime)}
+
+  /* força de memória */
+  .forca{display:flex;align-items:center;gap:8px}
+  .forca .tk{flex:1;height:5px;border-radius:99px;background:var(--panel-2);overflow:hidden}
+  .forca .tk i{display:block;height:100%}
+  .f-alta i{background:var(--lime)} .f-media i{background:var(--amber)} .f-baixa i{background:var(--rose)}
+
+  .frase{font-size:14.5px;line-height:1.7;font-weight:500}
+  .w{border-bottom:1px dashed transparent;padding:1px 2px;border-radius:4px}
+  .w.nova{border-bottom-color:var(--teal);background:color-mix(in srgb,var(--teal) 10%,transparent)}
+  .w.idiom{border-bottom-color:var(--amber);background:color-mix(in srgb,var(--amber) 12%,transparent)}
+  .nota{border-left:2px solid var(--amber);padding:2px 0 2px 10px;margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6}
+  .nota b{color:var(--text)}
+
+  /* rank */
+  .ring{width:76px;height:76px;flex:0 0 auto;position:relative;display:grid;place-items:center;border-radius:50%;
+        background:conic-gradient(var(--teal) 0turn .62turn,var(--panel-2) .62turn 1turn)}
+  .ring::after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--panel)}
+  .ring b{position:relative;font-family:var(--display);font-size:26px;font-weight:700;color:var(--teal)}
+  .ledger{display:flex;justify-content:space-between;gap:9px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12px}
+  .ledger:last-of-type{border-bottom:0}
+  .xp{font-family:var(--mono);font-weight:600;color:var(--lime);white-space:nowrap}
+  .xp.zero{color:var(--muted-2)}
+  .badge{aspect-ratio:1;border-radius:11px;display:grid;place-items:center;border:1px solid var(--line);font-size:19px}
+  .b1{background:linear-gradient(140deg,#0b2b33,var(--teal));color:#04070c}
+  .b2{background:linear-gradient(140deg,#2a1240,var(--violet));color:#04070c}
+  .b3{background:var(--panel-2);color:var(--muted-2)}
+
+  /* bastidor */
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+  .kv:last-child{border-bottom:0}
+  .kv .v{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .term{font-family:var(--mono);font-size:10.5px;line-height:1.8;background:#04070c;border:1px solid var(--line);
+        border-radius:10px;padding:12px;color:var(--muted);overflow-x:auto}
+  .term b{color:var(--lime)} .term i{color:var(--teal);font-style:normal} .term u{color:var(--amber);text-decoration:none}
+
+  .lista{display:flex;align-items:center;gap:11px;padding:12px 13px;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}
+  .lista:last-child{border-bottom:0}
+  .lista .ic{width:30px;height:30px;border-radius:9px;background:var(--panel-2);display:grid;place-items:center;font-size:14px}
+  .lista .ar{margin-left:auto;color:var(--muted-2)}
+
+  .note{margin-top:14px;padding:12px;border-left:2px solid var(--violet);background:var(--panel);border-radius:0 11px 11px 0}
+  .note p{margin:0;color:var(--muted);font-size:12px;line-height:1.65}
+  .note b{color:var(--text)}
+  .note.new{border-color:var(--teal)}
+  .note.keep{border-color:var(--lime)}
+
+  nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:440px;z-index:30;display:flex;
+      background:color-mix(in srgb,var(--void) 94%,transparent);backdrop-filter:blur(14px);border-top:1px solid var(--line);
+      padding:9px 4px calc(9px + env(safe-area-inset-bottom))}
+  nav button{flex:1;background:0;border:0;color:var(--muted-2);font-family:var(--mono);font-size:8.5px;display:flex;
+             flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:3px 0;letter-spacing:.05em}
+  nav button .i{font-size:16px;line-height:1}
+  nav button[aria-current="true"]{color:var(--teal)}
+
+  @media (min-width:900px){
+    .app{max-width:1100px;padding-bottom:40px}
+    nav{display:none}
+    .desknav{display:flex !important}
+    .top{display:none}
+    .screen{padding:26px}
+    .wide{display:grid;grid-template-columns:1fr 330px;gap:22px;align-items:start}
+    .aside{display:block;position:sticky;top:84px}
+    .grid2{grid-template-columns:repeat(4,1fr)}
+    .cloze{font-size:23px}
+  }
+  .desknav{display:none;align-items:center;gap:8px;padding:15px 26px;position:sticky;top:0;z-index:20;
+    background:color-mix(in srgb,var(--void) 90%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .desknav .lk{padding:8px 13px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+  .desknav .lk.on{background:var(--panel-2);color:var(--teal)}
+  .desknav .sp{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .aside{display:none}
+</style>
+</head>
+<body class="estudo">
+<div class="app">
+
+  <header class="desknav">
+    <div class="logo" style="margin-right:18px">GRI<b>MOIRE</b></div>
+    <span class="lk on" data-ir="hoje">Hoje</span>
+    <span class="lk" data-ir="capturar">Capturar</span>
+    <span class="lk" data-ir="grimorio">Grimório</span>
+    <span class="lk" data-ir="progresso">Progresso</span>
+    <span class="lk" data-ir="bastidor">Bastidor</span>
+    <div class="sp">
+      <span class="chip lime so-estudo inline" style="display:inline-flex">94 firmes</span>
+      <span class="chip teal so-jogo inline">RANK B · Nv 24</span>
+      <div class="modo">
+        <button class="on" data-modo="estudo">Estudo</button>
+        <button data-modo="jogo">Jogo</button>
+      </div>
+    </div>
+  </header>
+
+  <header class="top">
+    <div class="logo">GRI<b>MOIRE</b></div>
+    <span class="chip lime so-estudo" style="display:inline-flex">94 firmes</span>
+    <span class="chip teal so-jogo inline">B · Nv24</span>
+    <div class="modo">
+      <button class="on" data-modo="estudo">Estudo</button>
+      <button data-modo="jogo">Jogo</button>
+    </div>
+  </header>
+
+  <!-- ==================== HOJE ==================== -->
+  <section class="screen on" id="hoje">
+    <div class="wide"><div>
+
+      <p class="eyebrow">// <b>hoje</b> · quanto tempo você tem?</p>
+      <div class="tempo">
+        <div class="t on"><b>5 min</b><small>8 frases</small></div>
+        <div class="t"><b>15 min</b><small>24 frases</small></div>
+        <div class="t"><b>tudo</b><small>41 frases</small></div>
+      </div>
+      <p class="sub" style="margin-top:10px">
+        A sessão se adapta ao tempo, e as mais esquecidas vêm primeiro. Fila de 41 sem escolha
+        é o que faz fechar o app.
+      </p>
+
+      <div class="card pad">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <span class="chip violet">Duolingo</span>
+          <span class="chip so-jogo inline amber">vencida há 6d · +40 XP</span>
+          <span class="chip so-estudo" style="display:inline-flex">vencida há 6 dias</span>
+          <span class="chip" style="margin-left:auto">3 / 8</span>
+        </div>
+
+        <p class="cloze">That sweater is <span class="gap" data-r="expensive">______</span></p>
+        <p class="sub" style="text-align:center;margin:4px 0 0">Aquele suéter é caro</p>
+
+        <div class="grad">
+          <div class="g err">Errei<small>volta hoje</small></div>
+          <div class="g dif">Difícil<small>em 2 dias</small></div>
+          <div class="g fac">Fácil<small>em 9 dias</small></div>
+        </div>
+        <p class="sub" style="text-align:center;margin:10px 0 0;font-size:11px">Toque na lacuna para revelar</p>
+      </div>
+
+      <div class="card pad mt so-jogo">
+        <p class="eyebrow">// xp desta sessão</p>
+        <div class="ledger"><div>Acerto · vencida há 6d<div class="mono" style="font-size:9.5px;color:var(--muted-2)">quanto mais tarde, mais vale</div></div><span class="xp">+40</span></div>
+        <div class="ledger"><div>Acerto · vencida há 1d<div class="mono" style="font-size:9.5px;color:var(--muted-2)">no prazo</div></div><span class="xp">+25</span></div>
+        <div class="ledger"><div>Revisão antecipada<div class="mono" style="font-size:9.5px;color:var(--muted-2)">antes de esquecer não fixa</div></div><span class="xp zero">0</span></div>
+      </div>
+
+      <div class="note new"><p><b>A regra que sustenta o jogo:</b> XP por acertar frase vencida, e zero por revisar antes da hora. O SRS agenda a revisão no ponto em que você está quase esquecendo, porque é o esforço de lembrar que fixa. Pontuar volume faria o jogo brigar com o aprendizado — é o que acontece com ofensiva de 800 dias e nenhuma fluência.</p></div>
+    </div>
+
+    <div class="aside">
+      <div class="card pad">
+        <p class="eyebrow">// estado da memória</p>
+        <div class="gen"><span class="nm">Firmes</span><span class="tk"><i style="width:63%;background:var(--lime)"></i></span><span class="pc">94</span></div>
+        <div class="gen"><span class="nm">Enfraquecendo</span><span class="tk"><i style="width:28%;background:var(--amber)"></i></span><span class="pc">41</span></div>
+        <div class="gen"><span class="nm">Esquecidas</span><span class="tk"><i style="width:9%;background:var(--rose)"></i></span><span class="pc">13</span></div>
+        <p class="sub" style="margin:10px 0 0;font-size:11px">
+          Frase esquecida volta ao início do intervalo. Essa é a penalidade — e ela é real,
+          não inventada.
+        </p>
+      </div>
+
+      <div class="card pad mt">
+        <p class="eyebrow">// modo descanso</p>
+        <p style="margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.6">
+          Viagem ou semana ruim: congela o decaimento e a corrente. Voltar depois de um mês
+          com tudo zerado é o que faz ninguém voltar.
+        </p>
+        <button class="btn ghost block">Ativar descanso</button>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- ==================== CAPTURAR ==================== -->
+  <section class="screen" id="capturar">
+    <div class="wide"><div>
+      <p class="eyebrow">// <b>capturar</b> · cole e o worker resolve</p>
+
+      <div class="card pad" style="border-color:color-mix(in srgb,var(--teal) 35%,transparent)">
+        <p class="frase" style="color:var(--muted)">That sweater is expensive</p>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+          <span class="chip violet">Duolingo</span>
+          <button class="btn" style="margin-left:auto;padding:8px 14px">Enfileirar</button>
+        </div>
+      </div>
+
+      <div class="card pad mt">
+        <p class="eyebrow">// já existe algo parecido? <b>busca semântica</b></p>
+        <div style="display:flex;gap:8px;align-items:flex-start;padding:10px;border-radius:10px;
+                    background:color-mix(in srgb,var(--amber) 8%,transparent);
+                    border:1px solid color-mix(in srgb,var(--amber) 35%,transparent)">
+          <span style="font-size:15px">⚠</span>
+          <div>
+            <p style="margin:0;font-size:12.5px"><b>How much is that hat?</b></p>
+            <p class="mono" style="margin:3px 0 0;font-size:10px;color:var(--muted-2)">
+              similaridade 0.87 · mesma estrutura, preço de objeto
+            </p>
+          </div>
+        </div>
+        <p class="sub" style="margin:10px 0 0;font-size:11.5px">
+          Embedding com <b style="color:var(--text)">pgvector</b>, incluso no plano free. Avisa antes de
+          salvar duplicata e alimenta o "frases relacionadas".
+        </p>
+      </div>
+
+      <div class="card pad mt">
+        <p class="eyebrow">// leitura da ia · <b>gemini</b></p>
+        <p class="frase">That sweater is <span class="w nova">expensive</span></p>
+        <p class="sub" style="margin:6px 0 0">Aquele suéter é caro</p>
+        <div class="nota"><b>expensive</b> — caro no sentido de preço alto. Para "caro" de afeto,
+          o inglês usa <b>dear</b>. O contrário aqui é <b>cheap</b>, que também significa "de má qualidade".</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+          <span class="chip teal">A2 · básico</span>
+          <span class="chip">1 palavra nova</span>
+          <span class="chip violet">sugere: Compras</span>
+        </div>
+      </div>
+
+      <div class="note new"><p><b>A categoria é sugerida, não digitada.</b> É o que impede "Code" e "Código" virarem duas gavetas — a taxonomia normaliza antes de gravar.</p></div>
+    </div>
+
+    <div class="aside">
+      <div class="card pad">
+        <p class="eyebrow">// fila do worker</p>
+        <div class="ledger"><div>That sweater is expensive<div class="mono" style="font-size:9.5px;color:var(--lime)">pronto</div></div><span class="chip lime">✓</span></div>
+        <div class="ledger"><div>I'll take care of it<div class="mono" style="font-size:9.5px;color:var(--teal)">processando</div></div><span class="chip teal">◉</span></div>
+        <div class="ledger"><div>Mind the gap<div class="mono" style="font-size:9.5px;color:var(--muted-2)">pendente</div></div><span class="chip">·</span></div>
+        <p class="sub" style="margin:10px 0 0;font-size:11px">
+          Você cola cinco frases e fecha o app. O worker decodifica em background.
+        </p>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- ==================== GRIMÓRIO ==================== -->
+  <section class="screen" id="grimorio">
+    <p class="eyebrow">// <b>grimório</b> · 148 frases · 6 rótulos</p>
+
+    <div class="card pad">
+      <p class="eyebrow">// rótulos normalizados</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="chip teal">Programação 34</span>
+        <span class="chip violet">Duolingo 51</span>
+        <span class="chip amber">Compras 12</span>
+        <span class="chip">Trabalho 28</span>
+        <span class="chip">Cotidiano 19</span>
+        <span class="chip rose">sem rótulo 4</span>
+      </div>
+      <div class="nota" style="border-color:var(--teal)">
+        <b>Code</b>, <b>Código</b> e <b>Golang</b> viraram <b>Programação</b>. Três gavetas para o
+        mesmo assunto quebravam qualquer estatística — a taxonomia guarda os sinônimos e mostra um só.
+      </div>
+    </div>
+
+    <div class="card mt">
+      <div class="pad" style="border-bottom:1px solid var(--line)">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <span class="chip violet">Duolingo</span>
+          <span class="chip lime" style="margin-left:auto">firme</span>
+        </div>
+        <p class="frase" style="margin:0 0 4px">How much is that hat?</p>
+        <p class="mono" style="margin:0 0 8px;font-size:11px;color:var(--muted-2)">Quanto custa aquele chapéu?</p>
+        <div class="forca f-alta"><span class="mono" style="font-size:9.5px;color:var(--muted-2)">memória</span>
+          <span class="tk"><i style="width:88%"></i></span>
+          <span class="mono" style="font-size:9.5px;color:var(--lime)">88%</span></div>
+        <p class="mono" style="margin:8px 0 0;font-size:10px;color:var(--muted-2)">
+          5 acertos · próxima em 14d · relacionada: "That sweater is expensive"
+        </p>
+      </div>
+
+      <div class="pad" style="border-bottom:1px solid var(--line)">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <span class="chip teal">Programação</span>
+          <span class="chip amber" style="margin-left:auto">enfraquecendo</span>
+        </div>
+        <p class="frase" style="margin:0 0 4px">The deadlock happens when two goroutines wait on each other</p>
+        <p class="mono" style="margin:0 0 8px;font-size:11px;color:var(--muted-2)">O impasse acontece quando duas goroutines esperam uma pela outra</p>
+        <div class="forca f-media"><span class="mono" style="font-size:9.5px;color:var(--muted-2)">memória</span>
+          <span class="tk"><i style="width:44%"></i></span>
+          <span class="mono" style="font-size:9.5px;color:var(--amber)">44%</span></div>
+        <p class="mono" style="margin:8px 0 0;font-size:10px;color:var(--muted-2)">2 acertos · 1 erro · vence amanhã</p>
+      </div>
+
+      <div class="pad">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <span class="chip">Cotidiano</span>
+          <span class="chip rose" style="margin-left:auto">esquecida</span>
+        </div>
+        <p class="frase" style="margin:0 0 4px">I slipped and fell</p>
+        <p class="mono" style="margin:0 0 8px;font-size:11px;color:var(--muted-2)">Eu escorreguei e caí</p>
+        <div class="forca f-baixa"><span class="mono" style="font-size:9.5px;color:var(--muted-2)">memória</span>
+          <span class="tk"><i style="width:12%"></i></span>
+          <span class="mono" style="font-size:9.5px;color:var(--rose)">12%</span></div>
+        <p class="mono" style="margin:8px 0 0;font-size:10px;color:var(--muted-2)">
+          sem revisão há 62 dias · voltou ao início do intervalo
+        </p>
+      </div>
+    </div>
+
+    <div class="note new"><p><b>Ideia nova:</b> a <b>força de memória</b> por frase, calculada do histórico de revisões. É o que transforma uma lista morta num organismo — e é o mesmo número que alimenta a penalidade, a fila de hoje e o rank.</p></div>
+  </section>
+
+  <!-- ==================== PROGRESSO ==================== -->
+  <section class="screen" id="progresso">
+    <div class="wide"><div>
+
+      <div class="so-estudo">
+        <p class="eyebrow">// <b>progresso</b> · relatório</p>
+        <h2 style="font-size:21px;font-weight:600;line-height:1.3;margin-bottom:6px">
+          Retenção de 87% em 30 dias, e gíria é o seu ponto fraco.
+        </h2>
+        <p class="sub">148 frases · 94 firmes · 1.284 revisões</p>
+      </div>
+
+      <div class="so-jogo">
+        <p class="eyebrow">// <b>hud</b> · rank e progressão</p>
+        <div class="card pad" style="display:flex;gap:14px;align-items:center;margin-bottom:12px">
+          <div class="ring"><b>B</b></div>
+          <div style="min-width:0">
+            <h3 class="ttl" style="margin:0">Escriba de Prata</h3>
+            <p class="mono" style="margin:4px 0 8px;font-size:11px;color:var(--muted)">Nível 24 · 480 / 780 XP</p>
+            <div class="bar"><i style="width:62%"></i></div>
+            <p class="mono" style="margin:7px 0 0;font-size:10px;color:var(--muted-2)">
+              o rank mede frases firmes, não cliques
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card pad stat"><div class="n">87%</div><div class="l">retenção 30d</div></div>
+        <div class="card pad stat"><div class="n">94</div><div class="l">firmes</div></div>
+        <div class="card pad stat"><div class="n">12</div><div class="l">dias seguidos</div></div>
+        <div class="card pad stat"><div class="n">1.284</div><div class="l">revisões</div></div>
+      </div>
+
+      <div class="card pad mt">
+        <p class="eyebrow">// curva de retenção · view no postgres</p>
+        <svg viewBox="0 0 320 120" style="width:100%;height:auto;display:block">
+          <line x1="24" y1="100" x2="310" y2="100" stroke="#1e2733"/>
+          <line x1="24" y1="10" x2="24" y2="100" stroke="#1e2733"/>
+          <polyline points="24,22 74,34 124,44 174,58 224,70 274,86 310,94" fill="none" stroke="#5a6676" stroke-width="1.5" stroke-dasharray="4 4"/>
+          <polyline points="24,20 74,26 124,30 174,38 224,44 274,52 310,58" fill="none" stroke="#00e5ff" stroke-width="2"/>
+          <text x="28" y="118" fill="#5a6676" font-family="JetBrains Mono" font-size="8">1d</text>
+          <text x="150" y="118" fill="#5a6676" font-family="JetBrains Mono" font-size="8">15d</text>
+          <text x="288" y="118" fill="#5a6676" font-family="JetBrains Mono" font-size="8">30d</text>
+          <text x="180" y="30" fill="#00e5ff" font-family="Inter" font-size="9">você</text>
+          <text x="180" y="72" fill="#5a6676" font-family="Inter" font-size="9">esquecimento natural</text>
+        </svg>
+        <p class="sub" style="margin:8px 0 0;font-size:11px">
+          A linha pontilhada é a curva de Ebbinghaus sem revisão. A distância entre as duas é
+          o que o SRS está fazendo por você.
+        </p>
+      </div>
+
+      <div class="card pad mt">
+        <p class="eyebrow">// onde você erra</p>
+        <div class="gen"><span class="nm">Gírias</span><span class="tk"><i style="width:72%;background:var(--rose)"></i></span><span class="pc">72%</span></div>
+        <div class="gen"><span class="nm">Phrasal verbs</span><span class="tk"><i style="width:58%;background:var(--amber)"></i></span><span class="pc">58%</span></div>
+        <div class="gen"><span class="nm">Vocabulário</span><span class="tk"><i style="width:24%;background:var(--teal)"></i></span><span class="pc">24%</span></div>
+        <div class="gen"><span class="nm">Gramática</span><span class="tk"><i style="width:11%;background:var(--violet)"></i></span><span class="pc">11%</span></div>
+      </div>
+    </div>
+
+    <div class="aside">
+      <div class="card pad so-jogo">
+        <p class="eyebrow">// insígnias</p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <div class="badge b1">📕</div><div class="badge b2">🌙</div>
+          <div class="badge b1">⚡</div><div class="badge b3">🔒</div>
+        </div>
+        <p class="sub" style="margin:10px 0 0;font-size:11px">
+          100 frases firmes · 12 madrugadas · 30 dias de retenção acima de 85%
+        </p>
+      </div>
+
+      <div class="card pad mt">
+        <p class="eyebrow">// rótulo mais frágil</p>
+        <p style="margin:0;font-size:12.5px;color:var(--muted);line-height:1.6">
+          <b style="color:var(--text)">Programação</b> tem 34 frases e retenção de 61% — a menor de todas.
+          Frase técnica longa é mais difícil de reter que frase curta.
+        </p>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- ==================== BASTIDOR ==================== -->
+  <section class="screen" id="bastidor">
+    <p class="eyebrow">// <b>bastidor</b> · o que faz o app funcionar</p>
+    <h3 class="ttl">Painel de controle</h3>
+    <p class="sub">Tudo que é ajustável mora no banco. Mudar peso, prompt ou intervalo não exige deploy.</p>
+
+    <div class="card pad">
+      <p class="eyebrow">// motor srs</p>
+      <div class="kv"><span>Algoritmo</span><span class="v">FSRS · 17 parâmetros</span></div>
+      <div class="kv"><span>Teto diário</span><span class="v">20 frases</span></div>
+      <div class="kv"><span>Intervalo máximo</span><span class="v">180 dias</span></div>
+      <div class="kv"><span>Penalidade por erro</span><span class="v">força × 0.4</span></div>
+      <p class="sub" style="margin:10px 0 0;font-size:11px">
+        Função pura em Go, testável sem banco. A escolha entre SM-2 e FSRS vai para o DECISIONS.md.
+      </p>
+    </div>
+
+    <div class="card pad mt">
+      <p class="eyebrow">// worker de decodificação</p>
+      <div class="term">
+        <b>[WORKER]</b> ciclo iniciado · intervalo 30s<br>
+        <b>[WORKER]</b> <i>"That sweater is expensive"</i> → gemini-flash · 1.2s · <u>ok</u><br>
+        <b>[WORKER]</b> embedding gravado · 768 dimensões<br>
+        <b>[WORKER]</b> rótulo sugerido: <u>Compras</u> (0.91)<br>
+        <b>[WORKER]</b> fila: 2 pendentes
+      </div>
+      <div class="kv mt"><span>Binário separado</span><span class="v">cmd/worker</span></div>
+      <div class="kv"><span>Execução concorrente</span><span class="v">atomic.Bool · CompareAndSwap</span></div>
+      <div class="kv"><span>Kill switch</span><span class="v chip rose" style="display:inline-flex">desligar IA</span></div>
+    </div>
+
+    <div class="card pad mt so-jogo">
+      <p class="eyebrow">// economia de xp</p>
+      <div class="kv"><span>Acerto no prazo</span><span class="v">25</span></div>
+      <div class="kv"><span>Bônus por atraso</span><span class="v">+5 por dia vencido, teto 40</span></div>
+      <div class="kv"><span>Revisão antecipada</span><span class="v">0</span></div>
+      <div class="kv"><span>Faixas</span><span class="v">F → SS por frases firmes</span></div>
+      <p class="sub" style="margin:10px 0 0;font-size:11px">
+        Peso é linha no banco, e mudar peso nunca é retroativo: o ledger guarda quanto valeu na hora.
+      </p>
+    </div>
+
+    <div class="card pad mt">
+      <p class="eyebrow">// taxonomia de rótulos</p>
+      <div class="kv"><span>Programação</span><span class="v">Code · Código · Golang</span></div>
+      <div class="kv"><span>Compras</span><span class="v">Shopping · Snap</span></div>
+      <div class="kv"><span>sem rótulo</span><span class="v chip rose" style="display:inline-flex">4 frases</span></div>
+    </div>
+
+    <div class="note new"><p><b>Esta tela é a vitrine.</b> SRS com algoritmo de verdade, worker em binário separado, embeddings com pgvector, taxonomia com sinônimos e economia ajustável no banco. É o que separa um CRUD de um sistema — e é o que dá o que contar numa entrevista.</p></div>
+  </section>
+
+  <nav>
+    <button aria-current="true" data-ir="hoje"><span class="i">◎</span>Hoje</button>
+    <button data-ir="capturar"><span class="i">⌁</span>Capturar</button>
+    <button data-ir="grimorio"><span class="i">▤</span>Grimório</button>
+    <button data-ir="progresso"><span class="i">◈</span>Progresso</button>
+    <button data-ir="bastidor"><span class="i">⚙</span>Bastidor</button>
+  </nav>
+</div>
+
+<script>
+  const telas = document.querySelectorAll('.screen')
+  const abas  = document.querySelectorAll('nav button')
+
+  function ir(id){
+    telas.forEach(t => t.classList.toggle('on', t.id === id))
+    abas.forEach(b => b.setAttribute('aria-current', String(b.dataset.ir === id)))
+    document.querySelectorAll('.desknav .lk').forEach(l => l.classList.toggle('on', l.dataset.ir === id))
+    window.scrollTo({top:0, behavior:'smooth'})
+  }
+  document.querySelectorAll('[data-ir]').forEach(el => el.addEventListener('click', () => ir(el.dataset.ir)))
+
+  // o modo é uma camada, não outro app: o mesmo dado, outra leitura
+  document.querySelectorAll('[data-modo]').forEach(b => b.addEventListener('click', () => {
+    const modo = b.dataset.modo
+    document.body.classList.toggle('jogo', modo === 'jogo')
+    document.querySelectorAll('[data-modo]').forEach(o => o.classList.toggle('on', o.dataset.modo === modo))
+  }))
+
+  document.querySelectorAll('.tempo .t').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tempo .t').forEach(o => o.classList.remove('on'))
+    t.classList.add('on')
+  }))
+
+  document.querySelectorAll('.gap').forEach(g => g.addEventListener('click', () => {
+    const r = g.dataset.r
+    if (g.classList.contains('rev')) { g.classList.remove('rev'); g.textContent = '______' }
+    else { g.classList.add('rev'); g.textContent = r }
+  }))
+</script>
+</body>
+</html>

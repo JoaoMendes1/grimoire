@@ -6,6 +6,9 @@
 > funcionava em banco vazio e falhava em silêncio em banco existente: o
 > `CREATE TABLE IF NOT EXISTS` cria, mas nunca altera. Uma coluna nova nunca chegava
 > ao banco, e o boot mesmo assim anunciava "schema verificado com sucesso".
+>
+> Hoje o `InitDB` só conecta e confere se as tabelas existem. Se faltar alguma, o
+> servidor não sobe e o log diz qual arquivo daqui não foi aplicado.
 
 ---
 
@@ -35,8 +38,11 @@
 
 | Arquivo | O que faz | Aplicado em |
 |---|---|---|
+| `000_schema_inicial.sql` | Retrato do schema anterior à pasta. **Não aplicar em produção** — serve para recriar o banco do zero | não se aplica |
 | `001_alinha_user_id.sql` | `categories.user_id` vira `uuid`, como já era em `vocabularies` | 19/09/2026 |
 | `002_rls_policies.sql` | Policies de dono em `vocabularies` e `categories` | 19/09/2026 |
+
+Banco novo: aplicar `000`, `001` e `002`, nessa ordem.
 
 ## O snapshot
 
@@ -44,5 +50,8 @@ O `snapshot_schema.sql` é a **foto do banco agora**: tabelas, colunas, índices
 policies e funções. Ele não é aplicado nunca — serve para responder "como está hoje?"
 sem abrir o Supabase, e para o próximo arquivo ser escrito contra o estado real.
 
-Gerar com a consulta em `snapshot_query.sql`, colando o resultado por cima do arquivo
-anterior. O commit do snapshot vai junto do arquivo que causou a mudança.
+Para regenerar, rode a consulta de snapshot no SQL Editor e cole o resultado por cima
+do arquivo anterior. O commit do snapshot vai junto do arquivo que causou a mudança.
+
+> A consulta que gera a foto ainda não está versionada aqui — é dívida registrada no
+> `ROADMAP.md`.

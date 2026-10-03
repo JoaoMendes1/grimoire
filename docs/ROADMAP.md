@@ -1,854 +1,348 @@
-# 🗺️ AniDeck — Roadmap
+# 🗺️ Roadmap do Grimoire
 
-> ✅ **Aviso de Migração (28/07/2026):** O projeto pivotou inteiramente para a **AniList API (GraphQL)** devido à descontinuação iminente do Jikan. Todo o planejamento abaixo reflete essa nova realidade. Ver `DECISIONS.md`.
+Este documento mapeia a evolução do projeto: o que já está de pé, o que está em
+andamento e a visão de futuro.
 
-> 🎯 **Escopo fechado da v1 (21/08/2026):** as fases abertas abaixo são as únicas que faltam
-> para o AniDeck ser considerado **concluído**. Ideia nova entra no Backlog e só vira fase
-> depois do beta, com base em uso real — não antes. Ver `DECISIONS.md`.
+> **Decisão de arquitetura não mora aqui.** Escopo é o que vai ser feito; o porquê
+> vai para o `DECISIONS.md`.
 
-## 🎯 Onde está o MVP
+> **Revisão de 03/10/2026.** As fases 5 a 7 foram reescritas a partir do protótipo
+> `docs/prototipos/grimoire-prototipo-v2.html`. A versão anterior descrevia um produto
+> que não é mais o alvo: ela apostava em captura de diálogo por cima de jogos, uso que
+> acabou quando o jogo ganhou legenda em português. O foco agora é frase vinda de
+> qualquer lugar — Duolingo, série, leitura, conversa.
 
-**Fases 1, 2 e 3** = MVP publicável: fundação + catálogo pessoal (salvar, status, notas, filtro)
-+ identidade visual mínima aplicada. Fases 4, 5 e 6.x são incrementos sobre um produto já no ar.
-
-## 🚀 Deploy contínuo
-
-Staging sobe já na Fase 1, como projeto esqueleto — mesmo padrão do JVM Systems.
-
-> **Mudou em 22/09/2026.** O projeto saiu do Render para VPS própria, e o deploy de produção
-> passou a ser `git push` na `main`, via GitHub Actions. **A homologação ficou sem destino:**
-> o ambiente de staging vivia no Render e foi suspenso junto. O fluxo do `AGENTS.md` continua
-> válido como disciplina de branch, mas o passo "validar em homologação" não tem onde acontecer
-> até que um segundo container suba na VPS. Ver `DECISIONS.md` e `AGENTS.md`.
-
-## 📍 Status atual (22/09/2026)
+## 📍 Status (03/10/2026)
 
 | Fase | Status |
 |---|---|
-| 1 · Fundação & Arquitetura | ✅ Concluída |
-| 2 · Catálogo Pessoal | ✅ Concluída |
-| 2.5 · Curadoria Pessoal (Admin) | ✅ Concluída |
-| 3 · Identidade Visual | ✅ Concluída |
-| 4 · Dashboard de Estatísticas | ✅ Concluída |
-| 4.5 · Automação e IA Generativa | ✅ Concluída |
-| 5 · Smart Tracking & Calendário | ✅ Concluída |
-| 6.5 · Ranking Ponderado | ✅ Concluída |
-| 6.6 · Página de Detalhes | ✅ Concluída |
-| 6.7 · Progresso por Episódio | ✅ Concluída |
-| 6.8 · Taxonomia & Estatísticas | ✅ Concluída |
-| 6.9 · Catálogo Próprio & Independência | ✅ Concluída |
-| 7 · Multiusuário | ✅ Concluída — beta fechado em andamento |
-| 8 · App Instalável | ✅ Concluída (escopo reduzido) |
+| 1 · MVP Web | ✅ Concluída |
+| 2 · Correções e refinamentos | ✅ Concluída |
+| 3 · Nuvem, autenticação e segurança | ✅ Concluída |
+| 3.5 · Dívida técnica, categorias e refatoração | ✅ Concluída |
+| 4 · Nova identidade, flashcards e edição | ✅ Concluída |
+| 4.5 · Dívida técnica e segurança | ✅ Concluída |
+| 4.7 · Fundação: schema versionado e documentação | ✅ Concluída |
+| 5 · Motor de revisão (SRS) | 🚀 Próxima |
+| 6 · Taxonomia de rótulos | 🕐 Planejada |
+| 7 · Relatório e curva de retenção | 🕐 Planejada |
+| 8 · Worker de decodificação (IA) | 🕐 Planejada |
+| 9 · Busca semântica (pgvector) | 🕐 Planejada |
+| 10 · Modo Jogo: rank, XP e penalidade | 🕐 Planejada |
+
+Infraestrutura: **VPS própria desde 22/09/2026** — ver "Manutenção", no fim do arquivo.
 
 ---
 
-## 🏗️ Fase 1: Fundação & Arquitetura — início do MVP
+## 🧭 A ordem das fases 5 a 10 não é arbitrária
 
-- [x] Inicializar backend Go + Chi (mesma estrutura de pastas dos outros projetos).
-- [x] Criar projeto Supabase (banco + auth).
-- [x] Schema inicial: tabela `media_entries` (id, mal_id, **tipo** [`anime`/`manga`], status, nota,
-      anotação, created_at, updated_at).
-- [x] Cliente HTTP em Go para consumir a Jikan API *(Nota histórica: Refatorado na Fase 2)*.
-- [x] Subir staging esqueleto.
+Cada fase existe onde está porque a seguinte depende dela:
 
-## 🔐 Fase 2: Catálogo Pessoal
+- **SRS vem primeiro** porque é a única que mexe no schema de forma profunda. Força de
+  memória, data da próxima revisão e histórico de acertos são colunas que o relatório,
+  a fila do dia e o XP vão todos ler. Construir estatística antes é calcular sobre
+  coluna que não existe.
+- **Taxonomia vem antes da IA** porque o worker sugere rótulo. Sem tabela canônica de
+  rótulos, ele grava texto livre e nasce a bagunça que o AniDeck levou meses para
+  desfazer — "Code", "Código" e "Golang" como três coisas diferentes.
+- **Relatório vem antes do worker** porque é a fase mais barata: é SQL sobre dado que
+  já existe. Entrega retorno visível cedo, o que importa num projeto que já ficou dois
+  meses parado.
+- **pgvector vem depois do worker** porque é o mesmo worker que gera o embedding. Antes
+  dele, não há o que indexar.
+- **Gamificação vem por último** porque é a única camada desligável, e porque o peso do
+  XP só faz sentido quando o número do SRS já é confiável.
 
-- [x] 🚨 **PIVÔ DE ARQUITETURA:** Substituição completa da Jikan API pela AniList API (GraphQL) devido ao anúncio de desligamento da Jikan. O Go foi refatorado como um *Adapter* (Issue #11) traduzindo os dados de volta para o JSON REST antigo, para salvar o frontend e o banco.
-- [x] Busca de anime exibida no frontend. Busca instantânea (estilo Netflix/Prime): grade de pôsteres atualizando enquanto digita, com debounce. Funciona **sem login** — só a ação de salvar exige conta.
-- [x] Página de detalhe do anime com: sinopse, onde assistir, temas de abertura/encerramento,
-      animes relacionados e **distribuição de notas da comunidade** (como gráfico).
-- [x] Salvar/editar/remover entrada na lista pessoal (status, nota, anotação) no Supabase (CRUD - Issue #9).
-- [x] Transição de status: Sugerir automaticamente mudar para "Completo" quando a API informar que o anime "Em Dia" terminou.
-- [x] Autenticação Supabase funcional (login/cadastro). Rota `/deck` protegida.
-- [x] Sanitização de qualquer texto livre inserido pelo usuário (anotações) via `bluemonday` (proteção contra XSS).
-- [x] Exibir ranking global de animes baseado na query `Page(sort: SCORE_DESC)` da AniList (Issue #10).
-- [x] Filtro por gênero/tag e plataforma de streaming (via campo `externalLinks` da AniList, cruzado em tempo de execução) (Issue #10).
-- [x] **Sistema de Cartas Raras:** Funcionalidade de "Favoritos" com UI de carta holográfica (Foil) e organização prioritária no Deck e Rankings.
+### Restrição que atravessa todas elas
 
-## 🗂️ Fase 2.5: Curadoria Pessoal (Painel Admin)
-
-- [x] Criar tabela `curated_animes` no Supabase para armazenar destaques editados.
-- [x] Criar rotas no backend (`/api/curation`) para gerenciar (CRUD) os destaques.
-- [x] Atualizar rotas de Busca e Ranking para usar a curadoria local como prioridade (Fallback para AniList).
-- [x] Construir a interface do Painel Admin em React e conectar ao Backend.
-
-## 🎨 Fase 3: Identidade Visual — fim do MVP
-
-- [x] Protótipos visuais dedicados (fusão cyberpunk/sci-fi + anime) construídos em HTML/CSS nativo.
-- [x] Aplicação da identidade (Design Tokens) nos componentes React reais.
-- [x] Responsividade e acessibilidade básica.
-- [x] Realizar testes usando Smartphone para ajustes e refinamentos.
-
-## 📊 Fase 4: Dashboard de Estatísticas (Foco em SQL Avançado)
-
-- [x] Migrar a lógica de agregação de dados do client/backend para **VIEWS e FUNCTIONS nativas no Postgres (Supabase)**, exigindo domínio de queries complexas.
-- [x] Cálculo de métricas pessoais (tempo assistido, gênero favorito, distribuição por status) direto no banco.
-- [x] Visualização (gráficos) no painel do usuário consumindo essas procedures.
-
-## 🤖 Fase 4.5: Automação e IA Generativa
-
-> **Nota (21/08/2026):** o Agente Olheiro estava pausado desde 17/08 aguardando a definição da
-> Fase 6.5 (ranking ponderado). Esse pré-requisito foi cumprido — a fórmula bayesiana está
-> implementada e documentada. O Olheiro foi **retomado** com escopo reduzido: v1 sugere,
-> não decide. O relatório por Gmail saiu do escopo desta fase (ver Backlog).
-
-- [x] **Agente Curador (IA no Admin):** Integrar um LLM para reescrever sinopses frias da AniList de forma autônoma, adotando o tom de voz "AniDeck".
-- [x] **Engenharia de Prompt Dinâmica e Resiliência:** Criação de cache em memória no Go (`sync.RWMutex`) consultando tabela genérica no Supabase para editar as regras da IA sem mexer no código, suporte a Markdown, e fallback automático (`3.7-flash` -> `3.6-flash`).
-- [x] **Decisão arquitetural (17/08/2026): n8n descartado** — exigiria hospedar/manter mais um
-      serviço com custo recorrente, incompatível com o estágio atual do projeto. Implementação
-      fica **nativa em Go** (mesmo backend, sem serviço novo), disparada por agendador externo
-      gratuito (cron-job.org) batendo num endpoint interno protegido por chave secreta — mesmo
-      padrão adotado na Fase 6.7. Registrado em `DECISIONS.md`.
-- [x] 🔄 **Agente Olheiro v1 (fila de sugestões de curadoria).** Cruza o perfil de gosto do
-      usuário com os *trends* da AniList e grava candidatos em `curation_suggestions`, revisados
-      manualmente numa aba nova do Painel Admin (botões "Curar" / "Dispensar"). Endpoint
-      `POST /api/admin/olheiro/scan` protegido por chave secreta, agendado semanalmente.
-      A função de pontuação fica pura e testável em `internal/handlers/olheiro.go`, para ser
-      refinada incrementalmente conforme o projeto evolui. Issue detalhada no GitHub Projects.
-
-## 📅 Fase 5: Smart Tracking, Streaming Direto & Calendário (Killer Feature) — Finalizada 10/08/2026
-
-- [x] **Backend:** Atualizar a query GraphQL do Go para consumir `nextAiringEpisode` e repassar a janela de tempo ao frontend.
-- [x] **Meu Deck:** Criar lógica visual de Badge "NOVO EP" para obras "Assistindo" ou "Em Dia" com episódios recém-lançados.
-- [x] **Integração de Streaming:** Adicionar botão/ação rápida nos cards do Deck utilizando o campo `externalLinks` da AniList, permitindo pular direto para a Crunchyroll/Netflix.
-- [x] **Calendário Personalizado:** Tela mostrando próximos episódios exclusivos da *watchlist* do usuário, agrupados por dia da semana e com contagem regressiva viva.
-
-OBS: O Product Owner decidiu que a Fase 5 fosse implementada primeiro.
-
-## ⚖️ Fase 6.5: Ranking Ponderado
-
-> Nasceu da auditoria de UX registrada em `docs/ideias-para-melhorias.md`, item 2.2 (e 2.3).
->
-> **Nota (17/08/2026):** a versão simples desta fase (média bayesiana com dado que a AniList já
-> fornece hoje) **não depende** do sistema de credibilidade de longo prazo descrito em
-> `VISAO_RANKING_CREDIVEL.md` — pode ser implementada de forma independente, sem esperar a
-> Fase 7 (Multiusuário).
->
-> **Nota (21/08/2026):** fórmula fechada e implementada. O indicador ▲/▼ abaixo estava
-> bloqueado por essa definição e **foi destravado** — é o último item aberto da fase.
->
-> **Nota (26/08/2026):** fase encerrada. O indicador ▲/▼ foi implementado (issue #73):
-> `ranking_snapshots` grava uma foto a cada 30 dias, e o `updateGlobalCache` lê a foto
-> anterior antes de gravar a nova. Anime sem histórico não exibe indicador; quem manteve
-> a posição exibe `–`.
-
-- [x] Confirmar se a query GraphQL da AniList retorna contagem de avaliações/favoritos por anime.
-- [x] Definir e documentar em `DECISIONS.md` a fórmula de ponderação escolhida (ex: média
-      bayesiana ao estilo IMDb, puxando notas com poucos votos em direção à média geral).
-- [x] Implementar o cálculo (avaliar se fica em Go/handler ou como view/function no Postgres,
-      alinhado à Fase 4).
-- [x] Como parte da mesma decisão, avaliar o critério de equilíbrio entre animes clássicos e
-      recentes (item 2.3 do documento de ideias).
-- [x] 🔄 **Indicador de movimentação de posições no ranking (▲/▼).** Destravado em 21/08/2026
-      com o fechamento da fórmula. Exige tabela de snapshot diário de posições, job agendado
-      (mesmo padrão de cron externo da Fase 6.7) e as setas na UI de Rankings.
-
-## 🖼️ Fase 6.6: Enriquecimento da Página de Detalhes (Concluída)
-
-> **Decisão de Produto (Agosto/2026):** O escopo original previa adicionar Dubladores, Staff e Galerias de Imagens. Pivotamos essa decisão e descartamos esses dados para evitar poluição visual e lentidão na query GraphQL. O foco da fase tornou-se a imersão (UX Premium), as datas de lançamento e o refinamento das estatísticas.
-
-- [x] **Refatoração de UX/UI:** Substituição do formulário de avaliação estático por um Modal (BottomSheet) integrado, aplicação de cores dinâmicas no Design System das tags e adoção de pôsteres verticais contínuos para a seção de títulos relacionados.
-- [x] **Performance e Datas de Episódios (Killer Feature):** Paginação virtual (chunks de 24 episódios) no `EpisodeGrid` para evitar travamento em animes muito longos e cálculo dinâmico da data de lançamento exata (passada e futura) baseado na `startDate` do anime.
-- [x] **Estatísticas Vivas:** Consumo do `statusDistribution` da AniList (revelando a % da comunidade que completou ou dropou a obra) e histograma animado com marcação destacada da nota do próprio usuário.
-- [x] **Correções de Acessibilidade:** Implementação de `custom-scrollbar` para navegação por mouse no desktop na lista de personagens.
-
-## 📺 Fase 6.7: Progresso por Episódio & Notificação de Lançamento (Concluída)
-
-> Nasceu de uma sessão de planejamento em 17/08/2026, ao discutir os pré-requisitos técnicos
-> para a visão de longo prazo do ranking com credibilidade (`VISAO_RANKING_CREDIVEL.md`).
-> Planejamento completo, com issues detalhadas em formato `AGENTS.md`, motivação, gargalos
-> identificados (cobertura variável do campo `streamingEpisodes` da AniList, e o fato de que
-> temporadas já são separadas por `mal_id` — não precisa de agrupamento manual) e mitigação de
-> timeout de cold-start levantados na issue da fase.
-
-- [x] Criar tabela `episode_progress` (Supabase) + endpoints Go para marcar/desmarcar episódio assistido, com RLS extraindo o `user_id` sempre do JWT.
-- [x] Grade visual de episódios na página de detalhe/Meu Deck, usando `streamingEpisodes` da AniList (com fallback).
-- [x] **Antecipação PWA:** Adicionar `manifest.json` e registrar o `Service Worker` no frontend React (trazido da Fase 8).
-- [x] Criar tabela `push_subscriptions` (Supabase) para armazenar os endpoints, chaves `p256dh` e `auth` dos navegadores dos usuários.
-- [x] Notificação de episódio novo lançado (checagem diária via cron-job.org batendo em endpoint interno). O backend grava o histórico na tabela `notifications` **e simultaneamente** dispara o alerta para o sistema operacional via `webpush-go` usando chaves VAPID.
-
-## 🏷️ Fase 6.8: Taxonomia Própria & Evolução das Estatísticas (Concluída)
-
-> Nasceu da sessão de 20/08/2026, revisando a página de Estatísticas depois que a Fase 6.7
-> mudou a fonte de verdade do progresso.
->
-> **Verificação de estado (21/08/2026):** todos os arquivos `sql/001` a `sql/008` aplicados no
-> Supabase e o `POST /api/admin/metadata/resync` executado uma vez. Confirmado em tela pelo
-> gráfico de Distribuição por Ano populado e pelo Isekai aparecendo na Afinidade de Gêneros.
-
-- [x] **Tempo assistido usando `episode_progress` como fonte de verdade** (a view contava o
-      total teórico de episódios em vez do que foi realmente marcado).
-- [x] **Correção de segurança:** filtro `user_id = auth.uid()` explícito em todas as views —
-      uma view no Postgres não herda a RLS da tabela base.
-- [x] **Novos indicadores:** atividade recente, distribuição de notas, streak (em Go),
-      padrão de horário e recordes pessoais.
-- [x] **Taxonomia própria do AniDeck em 3 camadas** (`genre_taxonomy`): demografias/mercados,
-      gêneros narrativos e tags temáticas. Resolve o caso do Isekai, que a AniList classifica
-      como tag e por isso nunca chegava até as Estatísticas.
-- [x] **`tags` e `season_year` no cache de metadados** — o client da AniList não pedia nenhum
-      dos dois. Destrava o gráfico de Distribuição por Ano, que estava permanentemente vazio.
-- [x] **DDL versionado em `sql/`** — dívida técnica 2.1 fechada por completo: o `sql/006` traz
-      o SQL real das 9 views antigas, extraído com `pg_get_viewdef`, não reconstruído de memória.
-- [x] **Endpoint de re-sincronização em lote** (`POST /api/admin/metadata/resync`) — sem ele,
-      só animes salvos depois da mudança teriam os campos novos.
-- [x] **Refinamento de layout mobile** — cards de Streak não cortam mais na borda (`StatCard`
-      trocado por markup próprio em `grid-cols-2`), cards do topo em `grid-cols-3` sempre com
-      fonte/padding reduzidos via `sm:`, e `line-clamp-2` nos títulos dos Recordes.
-- [x] **Animação e microinterações nos gráficos** — barras e arcos crescem do zero, números dos
-      cards de destaque contam até o valor, cards entram com fade conforme a rolagem e barras/
-      badges reagem ao mouse. Tudo respeitando `prefers-reduced-motion`. O observer de scroll
-      virou o hook `useRevealOnScroll`, compartilhado com a Landing (que tinha o mesmo código
-      inline), e a contagem virou `useContagemAnimada`.
-- [x] **Cold-start do Padrão de Horário** — resolvido nas duas camadas de uma vez: a frase de
-      insight só aparece com 10+ dias distintos de atividade, e a contagem passou a ser por
-      **sessão** (marcações a menos de 2h de distância viram um bloco só), o que corrige o
-      problema na raiz e não só no primeiro uso. **Bônus:** o gráfico estava 3 horas deslocado
-      porque o Postgres extraía a hora em UTC — a conversão para hora local foi para o navegador.
-- [x] **Drill-down clicável** — clicar numa categoria **ou numa barra de ano** abre um `Sheet`
-      com os animes, reaproveitando `Sheet.tsx` + `AnimeCard`. Endpoints
-      `GET /api/stats/genre?nome=` e `GET /api/stats/year?ano=`, sobre views que repetem a
-      mesma lógica de recorte dos gráficos — a contagem da barra tem que bater com o tamanho
-      da lista.
-- [x] **Gráfico de quadrantes (volume × satisfação)** — decisão fechada pelo quadrante; o
-      motivo está no `DECISIONS.md`. A divisória horizontal é a nota média do próprio usuário.
-- [x] **Comparação temporal** — selo de variação no card de Atividade Recente, comparando as
-      últimas 4 semanas com as 4 anteriores. Só aparece com 8+ semanas de histórico e nunca
-      quando o período anterior é zero (evita o "↑ infinito%").
-- [x] **Anime esquecido** — card acionável com link direto pra obra, via
-      `view_user_forgotten_anime`. Só aparece depois de 7 dias parado: cutucar alguém por não
-      ter assistido ontem seria irritante, não útil.
-- [x] **Taxa de conclusão** — "você termina 7 de 10", enquadrado como curiosidade. Conta só
-      animes já decididos (completos + dropados): quem tem muita coisa em dia não deve ver a
-      taxa cair por causa disso.
-- [x] **Perfil Especialista vs Explorador** — fatia dos 2 rótulos mais assistidos, com faixas
-      assumidas e uma zona "equilibrado" no meio. Tags temáticas ficam fora da conta (apareceriam
-      em quase todo anime e achatariam a concentração).
-- [x] **Coluna órfã `media_entries.progress`** — auditoria confirmou que nenhuma tela envia o
-      campo; ele só ia no payload por existir na struct Go. Removido da struct; o `DROP COLUMN`
-      está em `sql/005`, para rodar **depois** do deploy (a ordem inversa quebraria o insert).
-
-## 📚 Fase 6.9: Catálogo Próprio & Independência da AniList (Concluída)
-
-> **Origem (22/08/2026):** a AniList desativou a API globalmente (403 —
-> *"temporarily disabled due to severe stability issues"*) e o AniDeck ficou
-> inteiro fora do ar: Rankings, Busca, Meu Deck e Detalhes. Confirmado por
-> `curl` direto no `graphql.anilist.co`, sem passar pelo backend. Segundo
-> incidente de fonte de dados em dois meses — o primeiro foi o encerramento
-> do Jikan, em 28/07.
->
-> **A inversão:** hoje a AniList é o *motor* — toda página a consulta ao vivo
-> e a curadoria é um remendo aplicado por cima do que ela devolve. No fim
-> desta fase ela vira a *fábrica de peças*: usada no Admin para importar uma
-> vez, e o que está gravado passa a ser a fonte de verdade.
+O protótipo tem dois modos: **Estudo** (formal, sem pontuação) e **Jogo** (rank, XP,
+penalidade). Toda tela construída da Fase 5 em diante nasce consciente dos dois — o
+elemento de jogo é marcado e escondido por preferência, não adicionado depois. Retrofit
+de modo em tela pronta significa reescrever a tela.
 
 ---
 
-### Bloco 1 — Precedência campo a campo (fundação)
+## 🏗️ Fase 1: MVP Web (✅ Concluída)
 
-- [x] **Corrigir a soma de tags nas Estatísticas (bug ativo).** A Afinidade
-      hoje soma `curated_animes.custom_tags` com `anime_metadata_cache.tags`.
-      Sintoma observado com **um único anime, curado com 3 tags**: a tela
-      exibiu 5+ rótulos em inglês (Environmental, Assassins, Crime, Mafia,
-      Philosophy) e elegeu "Environmental" como Gênero Favorito no card de
-      topo. Confirmar a causa em `sql/003` e `sql/008` antes de corrigir.
-- [x] **Rótulo sem correspondência na `genre_taxonomy` não entra no ranking
-      competitivo.** Verificar se hoje ele cai em `genero` por padrão — é a
-      segunda causa provável do sintoma acima. Tag temática já deveria ficar
-      fora por decisão de 21/08.
-- [x] **Padronizar `NULL` como "não curado" e valor vazio como "curei e está
-      vazio de propósito".** Vale para todos os campos de array
-      (`custom_tags`, `custom_characters`, e os novos do Bloco 2). O
-      `salvarDestaque` já faz isso certo para personagens — generalizar.
-- [x] **Aplicar a precedência em todos os handlers de leitura**, não só na
-      busca e no ranking (que já têm o fallback parcial de 30/07).
-- [x] **Registrar a regra no `DECISIONS.md`.**
+- [x] Servidor backend estruturado em Go.
+- [x] Banco de dados local SQLite.
+- [x] Rotas da API (GET, POST, DELETE).
+- [x] Interface "Terminal" com Tailwind CSS.
+- [x] Camadas separadas em `index.html`, `style.css` e `app.js`.
+- [x] Tradução automática via API externa.
+- [x] Reprodução de áudio híbrida (API + Web Speech).
 
----
+## 🔧 Fase 2: Correções e Refinamentos (✅ Concluída)
 
-### Bloco 2 — Campos novos de curadoria
+- [x] **#10 — Segurança:** middleware de autenticação bloqueando requisição sem PIN.
+- [x] **#11 — Áudio:** trava para pausar o áudio em execução antes de iniciar outro.
+- [x] **#12 — Limpeza visual:** remoção da etiqueta "SALVO" da listagem.
+- [x] **#13 — Tradução bidirecional:** detecção automática de idioma nos dois sentidos.
+- [x] **#21 — Estabilidade:** bloqueio silencioso de mídia no Service Worker e erro de
+      leitura no banco.
+- [x] **Higiene do repositório:** `.gitignore` blindando `.db` e binários.
 
-- [x] **`custom_episodes`** (JSONB, mesmo molde de `custom_characters`):
-      número, título, imagem, data de exibição. Resolve o caso de anime que
-      a AniList entrega sem episódios cadastrados, sem imagem ou em inglês.
-      A sobreposição é **por número do episódio**, nunca por ordem no array —
-      `episode_progress` referencia esse número e compactar a lista faria o
-      progresso já marcado apontar para o episódio errado, em silêncio. Travado
-      dos dois lados: teste na leitura, campo desabilitado ao editar.
-      O editor tem **"Importar da AniList"** e **"Gerar vazios"** (que funciona
-      com a API fora do ar), e nenhum dos dois sobrescreve o que já foi curado.
-- [x] **`custom_external_links`** (JSONB): plataforma + URL. Diferente dos
-      episódios, aqui a curadoria **substitui** a AniList em vez de somar: o
-      motivo de cadastrar um link é o de lá estar quebrado. URL que não comece
-      com `http`/`https` é recusada no servidor, não só no formulário.
-- [x] **Dados de estreia:** guardado como um `TIMESTAMPTZ` único em vez de data +
-      dia da semana + horário separados — os outros dois derivam dele, e o tipo
-      converte corretamente para o fuso de quem está olhando. O Painel captura
-      data **e hora** no horário local de quem cadastra, e a grade de episódios
-      usa esse instante no lugar da estimativa quando ele existe.
-- [x] **`custom_duration_minutes`:** aplicado sobre a duração da AniList. Valor
-      zero ou negativo é ignorado — zeraria o tempo assistido, pior do que a
-      estimativa de 24 min que já existia.
-- [x] **`curation_status`:** editável no formulário e visível como selo colorido
-      na lista lateral do Painel, junto da contagem de episódios curados. Sem
-      aparecer na lista ele não resolveria o problema que motivou sua criação.
-- [x] **`is_destaque BOOLEAN DEFAULT true`:** coluna criada, editável no Painel e
-      sinalizada na lista com o selo "oculto". A vitrine que faltava foi construída
-      junto: uma faixa de Destaques no topo do Meu Deck, alimentada por
-      `GET /api/curation?destaques=true`. Sem o parâmetro o endpoint continua
-      devolvendo tudo, que é o que o Painel precisa — filtrar por padrão esconderia
-      dele justamente os animes ocultos que ele precisa reencontrar para reexibir.
-      **A vitrine não depende da AniList:** título e capa saem de `curated_animes`,
-      então ela fica de pé mesmo com a API fora do ar.
+## ☁️ Fase 3: Nuvem, Autenticação e Segurança (✅ Concluída)
 
----
+- [x] **#22 — Migração de banco:** SQLite para Supabase (PostgreSQL).
+- [x] **Login com Google (OAuth2)** pela autenticação nativa do Supabase.
+- [x] **#26 — Segurança e refatoração:** injeção de dependências no contexto e remoção
+      de credenciais fixas do frontend.
+- [x] **#27 — Fail-fast:** o boot aborta se faltar variável crítica.
+- [x] **Hospedagem:** deploy no Render com múltiplas origens de redirecionamento.
+      *(Substituído pela VPS própria em 22/09/2026.)*
 
-### Bloco 3 — Resiliência (o site não morre junto com a API)
+## 🗂️ Fase 3.5: Dívida Técnica, Categorias e Refatoração (✅ Concluída)
 
-- [x] **Cadeia de fallback explícita na leitura:** `curated_animes` →
-      `anime_metadata_cache` → AniList ao vivo → resposta degradada. Hoje a
-      AniList é o **primeiro** passo e não existe o último.
-- [x] **Padronizar o mapeamento de erro de upstream.** A mesma falha da
-      AniList virou 503 no ranking, 500 no detalhe e 502 no Olheiro. Escolher
-      um código (503 + corpo com motivo) e aplicar em todos os handlers. Isso
-      é o que teria mostrado em 5 segundos que a causa era externa.
-- [x] **Nunca devolver 500 por falha de terceiro.** 500 significa "meu código
-      quebrou" e mandou o diagnóstico para o lado errado.
-- [x] **Estado degradado na UI.** A tela de Rankings já acerta ("Ranking
-      indisponível no momento"); a de Detalhes devolve 500 e o usuário não
-      entende nada. Padronizar, distinguindo "a fonte externa está fora" de
-      "deu erro".
-- [x] **Placeholder de imagem via `onError` na tag `<img>`.** As URLs de
-      imagem da AniList ficam num CDN separado do GraphQL e continuam
-      funcionando mesmo com a API fora — o placeholder é seguro contra URL
-      que morre um dia, não contra queda da API.
-- [x] **Suavizar o consumo do Olheiro.** O `buscarCandidatos` faz uma chamada
-      por tag (8 hoje) em rajada. A AniList reduziu o limite de 90 para 30
-      requisições/minuto e tem limitador de burst separado. Espaçar as
-      chamadas e tratar 429 explicitamente.
-- [x] **Atualizar `docs/fluxo-busca.md`:** o debounce de 400ms foi calculado
-      em cima dos 90/min. A premissa mudou.
+- [x] Ambiente de homologação e roteiro de publicação. *(O ambiente vivia no Render e
+      saiu junto com ele — ver Backlog.)*
+- [x] Ajuste de schema: `user_id` dessincronizado, tabela `categories` criada e
+      relacionada com `vocabularies`.
+- [x] Inversão de idioma: o inglês é sempre o termo principal ao salvar.
+- [x] Rotas CRUD de categorias.
+- [x] `PUT /api/words/{id}` para edição de termos.
+- [x] Auth: validação remota substituída por validação local de JWT.
+- [x] Resiliência: fallback na API de tradução.
+- [x] `README.md` atualizado para PostgreSQL e nuvem.
 
----
+## 🎨 Fase 4: Nova Identidade, Flashcards e Edição (✅ Concluída)
 
-### Bloco 4 — Painel Admin completo
+- [x] Edição imersiva em modal, com atualização de áudio e quebra de cache.
+- [x] Tradução bidirecional dentro dos modais, com auto-resize.
+- [x] Dashboard de categorias, com chips e cores derivadas por hash.
+- [x] Interface com animações, orbes e estados vazios tratados.
+- [x] Flashcards em accordion, escondendo a tradução.
+- [x] Contadores dinâmicos e filtro instantâneo por categoria.
+- [x] UX mobile-first: botão flutuante e formulários em tela cheia.
+- [x] Modal de confirmação para ações destrutivas e trava contra categoria duplicada.
 
-- [x] **Editor de episódios** — adicionar, editar e remover, no padrão do
-      `CuradoriaPersonagens`, com "Importar da AniList" e "Gerar vazios".
-      **Reordenar foi recusado de propósito:** reordenar significa renumerar, e
-      `episode_progress` referencia o número do episódio — renumerar dessincroniza
-      o progresso já marcado, sem erro e sem aviso. É a "Armadilha 9" documentada
-      no `sql/014`, escrita depois deste item do ROADMAP. O campo de número fica
-      travado ao editar; trocar de número exige excluir e recriar, que é uma ação
-      consciente.
-- [x] **Editor de links de streaming** — `CuradoriaLinks.tsx`, com recusa de URL
-      que não seja `http`/`https` tanto no formulário quanto no servidor.
-- [x] **Campos de estreia e duração** no formulário.
-- [x] **Lista de curadoria com filtro por completude.** O `curation_status` já
-      aparece como selo colorido na lista lateral, e os filtros foram
-      atualizados para refletir (Parcial / Completo / Revisar).
-- [x] **Botão de importar da AniList por `idMal`.** A função `buscarAnimePorIdMal`
-      já permitia, e a interface foi ajustada para aceitar números diretos na
-      barra de busca.
+## 🛡️ Fase 4.5: Dívida Técnica e Segurança (✅ Concluída)
 
-*Já existente, não refazer:* criar/editar/excluir, upload de capa e banner com
-compressão WebP e preview, personagens com nome/imagem/função, tags
-reordenáveis, sinopse com reescrita por IA, título, formato e status.
+- [x] **#46 — XSS:** sanitização de `term`, `translation` e nome de categoria antes do
+      `innerHTML`; `data-*` no lugar de `onclick` interpolado.
+- [x] **#54 — UX e identidade:** favicon, botões de copiar e tela de carregamento.
+- [x] **Auth JWT local via JWKS**, sem ida ao Supabase a cada requisição.
+- [x] **Índices** em `vocabularies(user_id)` e `categories(user_id)`.
+- [x] **Rate limiting** em `/api/translate` e `/api/audio`.
+
+## 🧱 Fase 4.7: Fundação — schema versionado e documentação (✅ Concluída)
+
+> Nasceu da retomada de 19/09/2026, depois de dois meses parado. A leitura completa do
+> código mostrou que o projeto funcionava, mas não se explicava: nenhuma decisão
+> registrada, nenhuma armadilha anotada, e o schema existindo em dois lugares que
+> discordavam entre si.
+
+- [x] **Documentação-base:** `AGENTS.md`, `ARQUITETURA.md`, `DECISIONS.md` e
+      `PITFALLS.md`.
+- [x] **`sql/` versionado**, com README de convenção e snapshot do banco.
+- [x] **`000_schema_inicial.sql`:** o DDL que só existia dentro do Go.
+- [x] **`001_alinha_user_id.sql`:** `categories.user_id` vira `uuid`. O banco já tinha
+      `uuid` em `vocabularies` e o Go declarava `TEXT` nas duas — divergência invisível,
+      porque `CREATE TABLE IF NOT EXISTS` não altera tabela existente.
+- [x] **`002_rls_policies.sql`:** policies de dono nas duas tabelas. A RLS estava
+      ligada e sem policy nenhuma; o isolamento dependia só do `WHERE` no Go.
+- [x] **`InitDB()` só conecta e confere.** Faz `Ping` e recusa subir se faltar tabela;
+      não cria nem altera nada.
+- [x] **`README.md` corrigido:** ele citava o `SUPABASE_JWT_SECRET`, abandonado desde
+      a migração para JWKS.
 
 ---
 
-### Bloco 5 — Decisões a registrar no `DECISIONS.md`
+## 🔁 Fase 5: Motor de revisão (SRS) (🚀 Próxima)
 
-- [x] **Precedência campo a campo** e a distinção `NULL` × vazio.
-- [x] **Reavaliar a decisão de ToS de 07/2026** ("nunca armazenar dados de
-      catálogo"). Importar um anime por vez pelo Admin e guardar o resultado
-      é diferente de espelhar o banco deles em massa — mas a linha precisa
-      ser traçada explicitamente e por escrito, não assumida.
-      Vale conferir também Kitsu, TMDB e a API oficial do MAL: termos
-      diferentes, garantias diferentes.
-- [x] **Risco de fonte única de dados.** Dois incidentes em dois meses. Não
-      exige mudar nada hoje — exige estar escrito que o risco é conhecido e
-      aceito.
-- [x] **Estratégia de semeadura do catálogo:** profundidade antes de largura.
-      Curadoria completa nos "BIG animes" (todas as temporadas, todos os
-      episódios com nome e imagem, links conferidos); curadoria parcial no
-      resto, deixando a AniList cobrir o que já atende bem. Ordem sugerida:
-      (1) os animes que já estão no deck, (2) temporada atual, (3) fila de
-      pedidos dos usuários.
+> Tela do protótipo: **Hoje**. É a fase que transforma arquivo de palavras em hábito
+> diário, e a única que mexe no schema de forma profunda.
 
----
+**Bloqueada por decisão aberta:** SM-2 ou FSRS. A escolha muda quais colunas entram em
+`vocabularies`, então nenhum arquivo de `sql/` nasce antes dela. Registrar em
+`DECISIONS.md`.
 
-### 🚧 Status da Fase
+- [ ] **Decidir o algoritmo** e registrar a decisão com o custo aceito.
+- [ ] **Colunas de revisão** em `vocabularies`: próxima revisão, força de memória,
+      histórico de acertos e erros. Arquivo próprio em `sql/`, com `ALTER TABLE`.
+- [ ] **Agendador como função pura em Go**, sem banco e sem rede: recebe o estado atual
+      e a resposta, devolve o próximo estado. É o que torna o motor testável sem
+      subir o Postgres — regra 18 do `AGENTS.md`.
+- [ ] **Testes de mesa** do agendador: acerto no prazo, acerto atrasado, erro,
+      primeira revisão, teto de intervalo.
+- [ ] **Tela Hoje:** a fila do dia dimensionada pelo tempo disponível, não por número
+      fixo. Quem tem 3 minutos recebe uma fila de 3 minutos.
+- [ ] **Modo descanso:** pausa deliberada que não quebra sequência nem acumula dívida.
+      Sem ele, a penalidade da Fase 10 pune quem viajou.
+- [ ] **Teto diário** configurável, lido do banco e não do código.
 
-- **Resolvido:** A Fase 6.9 foi finalizada e testada antes do beta (Fase 7), garantindo
-  que os convidados acessem uma plataforma estável e não dependente da estabilidade
-  da rede da AniList. Claro que sempre pode aparece melhorias significativas em futuras atualizações.
+## 🏷️ Fase 6: Taxonomia de rótulos
 
-## 👥 Fase 7: Multiusuário — Beta Fechado
+> Tela do protótipo: **Grimório**. Hoje existe `categories`, texto livre por usuário.
+> Rótulo é outra coisa: vocabulário canônico com sinônimos, que o worker da Fase 8 vai
+> usar como destino das sugestões.
 
-> **Nota (21/08/2026):** a fase deixou de ser "futuro, avaliar quando chegar" e ganhou objetivo
-> concreto: abrir o AniDeck para um grupo pequeno de convidados, gratuitamente, com o propósito
-> de observar como o sistema se comporta com gente que não é o autor.
->
-> **Não há monetização nesta fase.** Número de convidados é o que aparecer — duas ou três
-> pessoas já cumprem o objetivo técnico de sair da amostra de um usuário só.
+- [ ] **Tabela de rótulos canônicos**, com nome de exibição e lista de sinônimos.
+- [ ] **FK de `vocabularies` para o rótulo**, com `ON DELETE RESTRICT` — apagar rótulo
+      em uso tem que falhar, não deixar frase órfã.
+- [ ] **Migração das categorias atuais** para rótulos, mapeando duplicata por sinônimo.
+- [ ] **Balde "sem rótulo"** visível na interface, com contagem. Dado sem classificação
+      escondido é dado perdido.
+- [ ] **Frase de origem:** de onde o termo veio (Duolingo, série, leitura, conversa).
+      **Decisão aberta:** coluna nova `origin` ou reaproveitar o rótulo. São eixos
+      diferentes — "Compras" é assunto, "Duolingo" é procedência — e misturar os dois
+      numa coluna só impede filtrar por qualquer um deles.
 
-> **Nota (01/09/2026):** os itens de segurança da fase estão fechados. Backup, escrita do
-> cache de metadados e exclusão de conta saíram no mesmo dia. O que resta é cadastro,
-> política de privacidade e o teste de isolamento.
+## 📊 Fase 7: Relatório e curva de retenção
 
-> **Nota (03/09/2026):** teste de isolamento, troca de senha, login com Google e limite
-> de cadastros fechados. O Google expôs que a reautenticação da exclusão de conta era só
-> do frontend — corrigido no mesmo dia.
+> Tela do protótipo: **Progresso**. A fase mais barata das seis: é SQL sobre dado que
+> a Fase 5 já terá gravado.
 
-> **Nota (04/09/2026):** fase encerrada, com a política de privacidade publicada. Três itens
-> foram **congelados**, com motivo e gatilho de reabertura no `DECISIONS.md`: a recuperação
-> de senha, o SMTP próprio e o formulário de reporte de bug no site. Os três são atendidos
-> à mão na escala do beta fechado — senha esquecida se resolve pelo painel do Supabase, e
-> relato de bug pelo grupo de mensagens. Nenhum deles bloqueia os convites.
->
-> **A ordem importa quando reabrir:** o SMTP próprio vem primeiro. O serviço compartilhado do
-> plano Free tem teto de 2 e-mails por hora no projeto inteiro, então um fluxo de "esqueci
-> minha senha" construído em cima dele passaria no teste do autor e falharia no dia do convite.
->
-> Os dois itens que seguem sem marcação não são pendência de execução: reavaliar o modelo
-> de dados depende do que o beta revelar, e o pré-requisito do ranking depende de base de
-> usuários real. Ficam abertos até o beta rodar.
->
-> **Nota (07/09/2026):** durante os preparativos do beta, a AniList enfrentou instabilidade
-> global prolongada (403/Cloudflare) e expôs dois pontos de falha: o motor de ranking
-> travava com erro 503 no boot do Go (pois dependia da API externa acordada para popular
-> a RAM), e os animes curados ficavam sem contagem regressiva viva na agenda.
-> Realizado hardening do sistema antes dos convites: o ranking passou a ter estado
-> consolidado persistido no banco (`ranking_current_cache`), integrando as notas reais dos
-> usuários (`anime_community_scores`), e o backend passou a sintetizar agendamentos
-> futuros localmente a partir de `custom_episodes`. Detalhes em `DECISIONS.md`.
+- [ ] **Views no Postgres** para a curva de retenção, com `security_invoker` para a
+      RLS continuar valendo.
+- [ ] **HUD:** frases firmes, sequência de dias, revisões no período.
+- [ ] **"Onde você erra":** acerto por rótulo, destacando o rótulo mais frágil.
+- [ ] **Cálculo no banco, não no Go.** Agregação é o que o Postgres faz melhor, e
+      puxar linha por linha para somar em memória não escala nem na primeira centena.
 
-- [x] **Página de Configurações e Ajuda.** É a única das dez do `PAGES.md` que nunca
-      saiu do protótipo (`prototipos/config-ajuda-prototipo.html`). Precisa conter
-      exclusão de conta e redefinição de senha.
-- [x] **Cadastro fechado para evitar bot** — resolvido por limite automático em vez do
-      toggle global. O `before-user-created` hook (`sql/022`) recusa o cadastro quando
-      `auth.users` atinge o valor de `beta_signup_limit` em `app_settings`, hoje em 8.
-      A confirmação de e-mail (`Confirm email`) segue ligada como barreira adicional.
-      O toggle `Allow new users to sign up` permanece **ligado** de propósito: quem
-      fecha a porta é o limite, não ele. Feito em 02/09/2026. Ver #103 e `DECISIONS.md`.
-- [x] **Teste de isolamento entre contas** — validado em 02/09/2026 pelo PostgREST direto,
-      com JWT de conta comum. Cobertos `media_entries`, `episode_progress`,
-      `push_subscriptions` e `notifications` (leitura sem filtro, leitura apontada ao
-      uuid alheio e escrita no alheio, cada um com caso de controle), mais as 16 views
-      e a permissão de execução das RPCs. Sem vazamento. Ver #99.
-- [x] **Troca de senha em Configurações** — o campo existia mas estava dentro do
-      `<EmBreve>` do cartão do Google, e o `EmBreve` aplica `inert` na subárvore inteira.
-      Separado em dois cartões e implementado com `updateUser({ current_password,
-      password })`. A validação da senha atual é do servidor (toggle `Require current
-      password when updating`), não do frontend. Feito em 02/09/2026. Ver #100.
-- [x] **Recuperação de senha ("esqueci minha senha")** — atendida **manualmente**: quem
-      perde a senha me avisa e eu reseto pelo painel do Supabase. **Não existe fluxo no
-      app** — o `Auth.tsx` não tem "esqueci minha senha", não chama `resetPasswordForEmail`
-      e não há rota para definir senha nova. Marcado como resolvido porque a necessidade
-      está coberta na escala de 3 testadores, não porque a feature exista. Congelado em
-      04/09/2026, depois do SMTP próprio, que é pré-requisito dele. Ver `DECISIONS.md`.
-- [x] **Login com Google** — provider configurado com credenciais próprias (Google Cloud
-      Console, app em status Teste com usuários listados) e botão "Continuar com Google"
-      no `Auth.tsx`. O cartão saiu do `EmBreve` e mostra se a conta está conectada.
-      Entregue em 02/09/2026. Ver #101 e `DECISIONS.md`.
-- [x] **Esconder o acesso ao Painel Admin na UI** — `ItensPerfil.tsx` já condiciona
-      o link a `isAdmin` vindo do `SessaoContext`. É arrumação, não segurança: a
-      rota `/admin` continua acessível por URL e é o `RequireAdmin` que barra.
-- [x] **Exclusão de conta pelo próprio usuário** — `sql/021` (FK de `media_entries`
-      para `ON DELETE CASCADE`) + `DELETE /api/account` com service role + tela em
-      Configurações, com reautenticação por senha e confirmação digitada. Saiu melhor
-      que o previsto aqui: não é operada manualmente. Aplicado e validado em
-      01/09/2026. Ver #98 e `DECISIONS.md`.
-- [x] **Política de privacidade (LGPD)** — página pública em `/privacidade`, fora do
-      `RotaProtegida`, com link no `Auth.tsx` (cobrindo e-mail e Google) e em
-      Configurações. Conteúdo derivado do `snapshot_schema.sql`, não de suposição.
-      Exportação de dados declarada como atendimento por e-mail, sem prometer botão.
-      Feito em 03/09/2026. Ver #NN e `DECISIONS.md`.
-- [x] **Canal de reporte de bug** — o grupo de mensagens resolve na escala do beta
-      fechado. O formulário no site, com envio por SMTP próprio, foi avaliado e
-      congelado em 04/09/2026. Ver `DECISIONS.md`.
-- [x] **Rotina própria de backup e restauração validada** — pré-requisito
-      inegociável antes do primeiro convite. Backup automático não existe no
-      plano Free; a rotina é `pg_dump` (banco + `auth.users`) e `aws s3 sync`
-      (bucket `curadoria`), rodada à mão antes de cada arquivo `sql/` e
-      semanalmente. **Validada em 01/09/2026** em projeto descartável, com
-      conferência de contagem e de permissões. Ver `DECISIONS.md`.
-      **Atualizado em 22/09/2026:** a rotina deixou de ser manual e roda às 3h
-      pelo `cron` da VPS, com destino no Google Drive e 30 dias de retenção.
-      A restauração **desta** rotina ainda não foi testada — ver a dívida no fim
-      deste arquivo.
-- [x] **Escrita de `anime_metadata_cache` fechada a `is_admin()`** — `sql/020`,
-      aplicado e validado em 01/09/2026. Era a última policy `USING (true)`
-      do schema. Ver `DECISIONS.md`.
-- [ ] Reavaliar modelo de dados e permissões à luz do que o beta revelar.
-- [ ] **Pré-requisito para a visão completa de ranking com credibilidade** — ver
-      `VISAO_RANKING_CREDIVEL.md` (documento de visão, não compromisso de escopo; peso de voto
-      por XP de gênero só faz sentido com base de usuários real).
+## 🤖 Fase 8: Worker de decodificação (IA)
 
-## 📱 Fase 8: App Instalável — ✅ Concluída (escopo reduzido)
+> Tela do protótipo: **Capturar** — cola a frase, o worker resolve o resto. Substitui
+> os endpoints internos do Google, que são a armadilha 5 do `PITFALLS.md`.
 
-> **Decisão (21/08/2026):** fase encerrada. O objetivo real — o AniDeck instalar no celular,
-> aparecer na gaveta de aplicativos e abrir em tela cheia — foi entregue pelo PWA na Fase 6.7.
-> Os dois itens restantes do escopo original foram avaliados e descartados (ver seção abaixo).
+- [ ] **Fila de processamento** no banco: a frase entra com status pendente e a resposta
+      do usuário é imediata. Chamada de IA dentro do request deixa o usuário esperando
+      por algo que pode levar segundos.
+- [ ] **Binário separado em `cmd/worker`**, com ciclo de intervalo fixo.
+- [ ] **Trava de execução concorrente** com `atomic.Bool` e `CompareAndSwap`: ciclo
+      lento não pode ser atropelado pelo seguinte.
+- [ ] **Integração com o Gemini:** correção de grafia, tradução e frase de exemplo em
+      uma passada só.
+- [ ] **Sugestão de rótulo** contra a taxonomia da Fase 6, com nível de confiança.
+- [ ] **Kill switch no banco:** desligar a IA sem deploy.
+- [ ] **Erro de terceiro é 503**, nunca 500 — armadilha 7.
 
-- [x] `manifest.json`, Service Worker, ícones e display standalone *(entregues na Fase 6.7)*.
+## 🔍 Fase 9: Busca semântica (pgvector)
+
+> Depende do worker: é ele que gera o embedding. O `pgvector` está disponível no plano
+> gratuito do Supabase.
+
+- [ ] **Extensão `pgvector`** habilitada e coluna de embedding em `vocabularies`.
+- [ ] **Geração do embedding** no mesmo ciclo do worker, para não haver segunda fila.
+- [ ] **"Frases parecidas"** na ficha do termo: encontra o que a busca por texto não
+      encontra.
+- [ ] **Detecção de quase-duplicata** no momento de capturar, antes de gravar.
+
+## 🎮 Fase 10: Modo Jogo — rank, XP e penalidade
+
+> A única camada desligável. Em **modo Estudo** nada disto aparece; em **modo Jogo**,
+> rank, nível e penalidade entram por cima das mesmas telas.
+
+- [ ] **Preferência de modo** por usuário, lida no boot da interface.
+- [ ] **Ledger de XP:** cada evento grava quanto valeu *na hora*. Mudar peso depois
+      nunca é retroativo — recalcular histórico é como se perde a confiança no número.
+- [ ] **Pesos no banco**, não no código: acerto no prazo, bônus por atraso com teto,
+      revisão antecipada valendo zero.
+- [ ] **Faixas de rank** derivadas de frases firmes, não de XP acumulado. XP mede
+      esforço; rank tem que medir resultado.
+- [ ] **Penalidade por abandono**, no espírito do Habitica: força de memória decai e a
+      frase volta para a fila. O modo descanso da Fase 5 é o antídoto.
+- [ ] **Insígnias** por marco atingido.
 
 ---
 
----
+## 🧹 Dívida técnica conhecida
 
-# 🏁 v1.0 — beta entregue
+> Registrada em 19/09/2026, durante a retomada, e revista em 03/10/2026. Nenhum destes
+> itens impede o uso, e todos têm o contexto completo no `PITFALLS.md`.
 
-> Tudo acima é o produto sendo construído: Fases 1 a 8, escopo fechado, com fim.
-> Daqui para baixo o trabalho muda de natureza — não é mais construir, é evoluir.
-> A numeração continua, porque ela conta a história do projeto na ordem.
->
-> **Quando este arquivo passar de ~900 linhas**, mover as Fases 1 a 6 para
-> `docs/historico/` ou para releases do GitHub, deixando um ponteiro no topo.
-> Roadmap saudável guarda o que vem e o passado recente, não tudo.
+- [x] **`InitDB()` ainda cria schema.** Resolvido em 19/09/2026: só conecta e confere
+      se as tabelas existem (item 3 do `PITFALLS.md`).
+- [ ] **`audio_url` é dado derivado gravado no banco.** Montar a URL na hora elimina o
+      risco de o áudio falar a palavra antiga depois de uma edição.
+- [ ] **Coluna `status` não é usada por nenhuma tela.** Resíduo da etiqueta removida na
+      Fase 2.
+- [ ] **`vocabularies.user_id` aceita nulo**, e `categories.user_id` não. Vocabulário
+      sem dono não deveria existir. Pré-requisito da FK para `auth.users`.
+- [ ] **Sem testes.** Nenhum `_test.go` no projeto. Começar pelas funções puras:
+      `processarTraducao` e a detecção de idioma.
+- [ ] **Erro de terceiro devolvido como 500.** Falha do Google deveria ser 503.
+- [ ] **Rate limit por IP, não por usuário.** As duas rotas são autenticadas, então
+      limitar por `user_id` seria mais justo.
+- [ ] **`app.js` com 15 variáveis globais.** Quebrar em módulos por assunto. A Fase 5
+      adiciona tela nova, e tela nova sobre 15 globais são 17 globais.
+- [ ] **Log com `fmt.Println`.** Sem nível e sem área, não se filtra no
+      `docker compose logs`. O worker da Fase 8 roda sem ninguém olhando: sem log
+      estruturado, falha dele é invisível.
+- [ ] **Falha do banco no boot sai com código 0.** Variável faltando usa `os.Exit(1)`,
+      mas erro no `InitDB` faz só `return` no `main.go`. Com `restart: unless-stopped`
+      o container reinicia do mesmo jeito; com uma política `on-failure`, não
+      reiniciaria.
+- [ ] **Comentários de código ainda citam o Render**, no `main.go` (carga do `.env`) e
+      no `rate_limit.go` (leitura do `X-Forwarded-For`).
+- [ ] **A consulta que gera o snapshot não está no repositório.** Só a foto do banco
+      está, em `sql/snapshot_schema.sql`.
 
----
+## 📋 Backlog / ideias em avaliação
 
-## 🎛️ Fase 9: Independência da AniList na curadoria
+> Nada aqui é compromisso de escopo.
 
-> Milestone sugerido no GitHub: `v1.1`. Quatro issues, nesta ordem.
+- [ ] **🔴 Testar a restauração do backup automático.** A rotina de 22/09 captura todo
+      dia, mas nunca foi restaurada. Backup não restaurado é esperança, não backup.
+- [ ] **Homologação sem destino.** O ambiente de homologação vivia no Render. Opções: um
+      segundo container na mesma VPS apontando para uma branch `staging`, ou aceitar
+      explicitamente que a validação passou a ser local.
+- [ ] **Exportar o vocabulário** em CSV ou Anki.
+- [ ] **Importar lista pronta** para não começar do zero.
+- [ ] **Pesquisa por termo dentro do app**, já que a lista cresce sem limite.
+- [ ] **Tailwind compilado** em vez do CDN, se o tempo de carregamento incomodar.
+- [ ] **Sincronização instantânea** com o Realtime do Supabase. Faz sentido quando
+      houver mais de um dispositivo ativo ao mesmo tempo; hoje não há.
+- [ ] **Aplicativo nativo para Android.** O PWA cobre o uso atual. Vira fase se a
+      captura por compartilhamento do sistema se mostrar necessária.
 
-**O critério mudou (12/09/2026).** Até aqui o projeto media *completude* — campo
-preenchido ou vazio. A medida certa é **independência**: se a AniList cair e não
-voltar, o que sobra? Ela ficou quase uma semana fora e a resposta importa.
+## 🗑️ Avaliado e descartado
 
-Retrato inicial, por `sql/relatorio_independencia_v3.sql`:
-
-| Campo | Curado | Falta |
-|---|---|---|
-| Sinopse, capa, tags | 114 | 0 |
-| Personagens | 113 | 1 |
-| Banner | 104 | 10 |
-| Estreia | 15 | 99 |
-| **Lista de episódios** | 2 | **112** |
-| **Onde assistir** | 2 | **112** |
-
-**Independentes da AniList: 1 de 114.**
-
-**O cache não é fallback para esses campos.** O `anime_metadata_cache` guarda só
-`title`, `episodes`, `duration_minutes`, `genres`, `studios`, `average_score`,
-`tags` e `season_year` — conferido em `buildMetadataPayload`. Episódio, data de
-estreia e onde assistir **não estão lá**: vêm da AniList ao vivo ou de lugar
-nenhum. E mesmo o que ele guarda é uma foto: se ela morrer, congela.
-
-- [ ] **9.1 — Aba Painel de Controle.** Traz para um lugar só o que já existe e
-      já tem endpoint: Kill Switch, peso do voto do ranking (hoje `const` no
-      `ranking.go`), tags fora da taxonomia (`view_unmapped_labels`), uso do
-      bucket e o botão de Resync. Faixa de estado no topo. O Resync hoje mora
-      provisoriamente no cabeçalho do Painel de Curadoria e migra para cá.
-- [ ] **9.2 — Pesos do Olheiro saem do código.** O `tagsDesejadas` é `map`
-      literal no `olheiro.go`; o comentário dele já antecipava esta issue. Vira
-      tabela + tela. Mexe em schema.
-- [ ] **9.3 — Fila, worker e tela de revisão.** A base da 9.4, não um fim em si.
-      Traz junto a seção Catálogo (relatório de independência) da aba de Controle:
-      cada linha dele tem um botão "Enfileirar", que só existe depois da fila.
-      Worker é binário separado (`cmd/worker/`), não goroutine no app. O motivo
-      original era a hibernação do free tier; a VPS existe desde 22/09/2026 e a
-      separação continua valendo por outro: processo próprio ganha container ou
-      `systemd` sem ser derrubado a cada deploy do app. Molde a seguir: `StartRankingEngine` + o `atomic.Bool` com
-      `CompareAndSwap`. **Usa `ServiceRoleClient()`, nunca o token da
-      requisição** — ver o incidente de 12/09 na Manutenção pós-v1.
-- [ ] **9.4 — Títulos de episódio em pt-BR, datas, horários e onde assistir.**
-      O coração da fase. Exige busca na web: a AniList não tem título em
-      português, e o usuário quer o oficial da Crunchyroll.
-      **Duas chamadas ao Gemini por anime**: a API recusa `google_search` junto
-      com `ResponseMIMEType: application/json` (400 INVALID_ARGUMENT), e pedir
-      JSON pelo prompt é instável nos modelos `3.x-flash`. Estes campos **nunca**
-      entram em modo automático — o relatório de ressalvas e a aprovação humana
-      são parte do desenho, não precaução.
-
-**Correção de rumo (12/09/2026).** A 9.3 tinha sido planejada para gerar sinopse
-e tags em lote, e a 9.4 era a última com ressalva. Os dois estavam errados:
-sinopse, tags e capa já estão em **100% dos 114**, e são justamente os campos da
-9.4 que deixam 112 animes reféns. A 9.4 virou o centro; a 9.3 existe para
-alimentá-la.
-
-**O que já encolheu a fase, antes de começar.** O Resync passando a cobrir a
-curadoria zerou os 48 animes sem cache, e a derivação da estreia a partir do
-episódio 1 mais o botão "Distribuir datas (+7d)" reduzem a curadoria de
-episódios a: gerar vazios → distribuir datas → digitar os títulos. Sobrou o
-título, que é o que a IA resolve.
-
-**Foto de episódio, capa e banner ficam fora de toda a fase.** Modelo de texto
-não busca nem gera imagem. Isso volta pela AniList.
+- **Botão flutuante (overlay) para capturar diálogo por cima de jogos.**
+  Descartado em 03/10/2026. Era o uso que originou o projeto: jogo sem legenda em
+  português, tradução manual constante. O jogo ganhou legenda oficial e o uso acabou.
+  Manter o item significaria construir uma tela de captura otimizada para um cenário
+  que não acontece mais — e a captura por colagem da Fase 8 atende o uso real, que é
+  frase vista no Duolingo, numa série ou numa leitura.
 
 ---
 
-## 🧠 Fase 10: RAG e busca semântica — *a planejar*
+## 🔧 Manutenção
 
-> Levantada em 10/09/2026. **Só planejar depois da Fase 9 fechar.** Registrado
-> aqui para o contexto não se perder entre sessões.
+> Mudança de infraestrutura ou de documentação. **Não são fases** — não alteram o
+> produto e não seguem a numeração.
 
-**Motivação:** aprender RAG, embeddings e agentes com ferramenta — aplicado num
-projeto real, não em exercício descartável.
+### 03/10/2026 — Documentação alinhada com o código
 
-**Decidido que NÃO fazer:** RAG sobre dado estruturado. "Quantos Isekai eu
-tenho" é `SELECT`, e jogar isso num índice vetorial deixa mais lento, mais caro
-e **menos exato**. RAG serve para o que SQL não faz: significado em texto livre.
-
-**Os dois casos que cabem de verdade:**
-
-1. **Busca semântica nas sinopses.** São 114 sinopses reescritas à mão, em
-   português, com voz consistente. `WHERE tag = 'Isekai'` nunca responde "anime
-   com a melancolia de Frieren". Vira recurso do app: "parecidos com este".
-2. **RAG sobre as próprias docs.** `PITFALLS`, `DECISIONS` e `ROADMAP` passam de
-   100 KB e crescem. É o caso da wiki interna, literal. Bônus: melhora o fluxo
-   de trabalho com IA — o agente busca o trecho em vez de receber tudo colado.
-
-**Ordem sugerida:** embeddings das sinopses → busca por similaridade →
-RAG sobre as docs → agente que decide entre SQL e vetor.
-
-A terceira etapa é onde mora o aprendizado real: recortar documento em pedaços é
-o que separa RAG bom de ruim. O `PITFALLS.md` é caso ótimo porque já vem em itens
-numerados — cortar por item preserva o sentido, cortar a cada N caracteres não.
-
-**Infra (verificado em 10/09/2026):** `pgvector` está incluído no plano **Free**,
-sem custo extra — `create extension vector`. O free tier comporta de 50 a 80 mil
-vetores; o catálogo tem 114. **Não é preciso banco vetorial novo.** Embedding do
-Gemini tem camada gratuita, e a chave já existe no projeto.
-
-**Fora de escopo:** observabilidade com Grafana e MCP para telemetria. Com um
-usuário não há métrica que justifique, e inventar escala para praticar ensina
-pouco. O bloqueio do MCP do Supabase **mudou de forma em 22/09/2026**: a VPS
-existe e o backup diário existe, mas a restauração dessa rotina nunca foi
-testada, e produção e homologação continuam sendo o mesmo projeto Supabase.
-Credencial de escrita numa integração segue desproporcional enquanto não houver
-ponto de restauração comprovado — não apenas capturado.
-
----
-## 🏠 Fase 11: Home e navegação — *a planejar*
-
-Motivo: a rota `/` autenticada redireciona para o Deck, e a primeira impressão do produto é uma
-grade de coleção. O diferencial analítico não aparece antes da autenticação e, depois dela, fica
-atrás de um item de menu que não comunica o próprio conteúdo.
-
-- [ ] Home autenticada em `/`, com estreias do dia, retomada e vitrine (#122)
-- [ ] Trilhas curadas com nota de curadoria (#123)
-- [ ] Nova barra inferior: Início · Descobrir · Deck · Agenda · Perfil (#125)
-- [ ] Rankings vira aba dentro de Descobrir (#125)
-
-Referência visual: `prototipos/anideck-app-prototipo-v1.html`.
-Dependência: a #125 depende da #122 — um item só sai da barra quando existir destino alternativo.
-
-## 🪞 Fase 12: Meu Gosto e distribuição — *a planejar*
-
-Motivo: a leitura do gosto individual não tem equivalente nas plataformas analisadas e hoje está
-pouco acessível. É também a base do único artefato capaz de atrair usuários externos sem depender
-de base instalada.
-
-- [ ] Estatísticas vira Meu Gosto, abrindo com a frase de abertura (#121)
-- [ ] Bloco "lacuna de gosto" (#124)
-- [ ] Card de gosto compartilhável em PNG (#126)
-- [ ] *(avaliar)* importar lista do AniList/MAL na landing
-
-A gamificação (rank F→SS, XP, insígnias) **não entra aqui**. Continua no
-`VISAO_GAMIFICACAO.md` até haver decisão explícita de fazer.
-
-## 🔧 Manutenção pós-v1
-
-> Correção e ajuste feitos depois do escopo da v1 fechar. **Não são fases** — não seguem a
-> numeração e não abrem escopo novo. Ficam registrados aqui em ordem cronológica inversa para
-> não sumirem: fase concluída não deve ser reaberta só para receber um conserto.
+- [x] `ARQUITETURA.md`, `DECISIONS.md`, `PITFALLS.md`, este roadmap e os dois README
+      voltaram a descrever o que o código faz: schema em `sql/`, `InitDB` que só
+      confere, policies de RLS e a VPS.
+- [x] `sql/snapshot_query.sql` renomeado para `snapshot_schema.sql`: o arquivo guarda a
+      foto do banco, não a consulta.
 
 ### 22/09/2026 — Saída do Render: VPS própria, deploy automático e backup diário
 
-> A maior mudança de infraestrutura desde a migração para a AniList. Não é fase porque não
-> altera o produto: nenhuma tela mudou, nenhum campo novo existe. Ver `DECISIONS.md`.
+- [x] **VPS própria** (Integrator, Ubuntu 26.04 LTS), na mesma máquina dos outros
+      projetos. O Render foi suspenso.
+- [x] **Caddy como proxy reverso**, com HTTPS emitido e renovado sozinho.
+- [x] **Domínio próprio:** `grimoire.joaomendes.dev.br`.
+- [x] **Imagem em duas etapas** (Go → Alpine), 32 MB. Container com `expose`, nunca
+      `ports` (item 11 do `PITFALLS.md`).
+- [x] **Deploy por `git push` na `main`**, via GitHub Actions, com build na VPS.
+- [x] **Backup diário automático às 3h** para o Google Drive, incluindo o `.env`.
 
-- [x] **VPS própria** (Integrator, Ubuntu 26.04 LTS) com hardening: chave SSH, root bloqueado
-      no SSH, UFW, `fail2ban` e `unattended-upgrades`. O Render foi suspenso.
-- [x] **Caddy como proxy reverso**, com HTTPS emitido e renovado sozinho. O Nginx que veio na
-      imagem do provedor foi parado, não removido — item 27 do `PITFALLS.md`.
-- [x] **Domínio próprio:** `anideck.joaomendes.dev.br`, provisório até a compra de
-      `anideck.com.br`, adiada de propósito para quando o produto estiver mais completo.
-      As Redirect URLs do Supabase foram atualizadas para o domínio novo.
-- [x] **Imagem em três etapas** (Node compila o React → Go compila o binário → Alpine junta),
-      53 MB. Node é ferramenta de build e não vai para produção.
-- [x] **Deploy por `git push` na `main`**, via GitHub Actions com chave SSH dedicada.
-- [x] **Backup diário automático às 3h** para o Google Drive: `pg_dump` pelo Session pooler,
-      `rclone sync` do bucket `curadoria`, configuração e `.env`, com 30 dias de retenção.
-- [x] **O checador de episódios saiu do cron-job.org** para o `cron` da VPS, de 3h para 1h.
-- [x] **🔒 `POST /api/internal/check-new-episodes` estava aberto.** O `CRON_SECRET` era exigido
-      no boot pelo `internal/config/env.go` e **nunca conferido** pelo handler — a entrada de
-      31/08 no `DECISIONS.md` afirmava o contrário. A checagem do header virou as primeiras
-      linhas de `HandleCheckNewEpisodes`, e a rota responde 401 sem ele.
-- [x] **Infraestrutura versionada** em repositório privado `infra` (Caddyfile e compose).
-
-**Descoberto no caminho, tudo no `PITFALLS.md`:** o Docker fura o UFW (24), deploy verde não
-garante código novo (25), o `.env` do servidor envelhece sozinho e derrubou o Grimoire por uma
-senha rotacionada (26), e o painel do provedor desfaz a configuração com um clique (27).
-
-**O que ficou pendente:** a homologação perdeu o destino junto com o Render — ver a nota em
-"Deploy contínuo" — e a restauração do backup automático nunca foi testada.
-
-### 12/09/2026 — Resync passa a enxergar a curadoria
-
-- [x] **`HandleResyncMetadata` lia só `media_entries`.** Anime curado que ninguém
-      adicionou ao deck nunca ganhava linha em `anime_metadata_cache` — e como
-      quase todo campo de `curated_animes` é sobreposição, o que ficou vazio não
-      tinha de onde vir. Eram **48 dos 114**, incluindo ONE PIECE e Vinland Saga.
-      Passou a unir deck + curadoria; o `idsUnicos` já elimina a sobreposição.
-      Resultado: **48 → 0**.
-- [x] **O lote usa `ServiceRoleClient()`.** Na primeira execução, 34 animes foram
-      buscados com sucesso e perdidos na gravação com `(PGRST303) JWT expired`:
-      o token do Supabase dura ~1h e o resync passou disso com a AniList lenta.
-      **Trabalho de background não pode depender do token de uma requisição que
-      já terminou** — é o caso de exceção previsto no `db.go`. Depois disso:
-      114 de 114 em 7 minutos.
-- [x] **Botão de Resync no Painel.** O endpoint existia no `main.go` desde sempre
-      e nunca tinha sido ligado à tela. Provisório no cabeçalho do Painel de
-      Curadoria; migra para a aba da 9.1.
-- [x] **Estreia derivada do episódio 1.** O Painel tem dois campos de data — o
-      `aired_at` do episódio 1 e o `custom_first_aired_at` da obra. São coisas
-      diferentes, mas para o episódio 1 o valor é o mesmo, e digitar duas vezes
-      cria duas fontes para um fato só (item 19). Agora salvar o episódio 1
-      preenche a estreia quando ela está vazia — nunca sobrescreve.
-- [x] **Papel do personagem traduzido na exibição.** `MAIN`/`SUPPORTING` viram
-      Principal/Coadjuvante no Admin e em Detalhes. O valor gravado continua em
-      inglês, que é o vocabulário da AniList. O mapa vive em
-      `client/src/types/curation.ts`, não duplicado nos dois componentes.
-
-### 08/09/2026 — Curadoria deixa de depender da AniList
-
-- [x] **Campo de `mal_id` e modo manual no Painel Admin.** O `BuscaAniList` fala direto com o
-      `graphql.anilist.co` pelo navegador, sem passar pelo Go — então o Painel era o único
-      ponto do app que o Kill Switch e a cadeia de fallback da Fase 6.9 **não cobriam**. Com a
-      AniList em manutenção por dois dias, não havia como cadastrar nada. Agora o `mal_id` é
-      digitável (buscado no myanimelist.net) e o botão "Criar manualmente" abre o formulário
-      sem tocar na API. O id continua sendo o real — sem id próprio, sem mudança de schema.
-      Ver #NN e `DECISIONS.md`.
-- [x] **`ValidarMalID` no servidor e 409 para `mal_id` duplicado.** O `HandleCreate` gravava
-      `mal_id = 0` sem reclamar (campo `int`, item 16 do `PITFALLS.md`), e a única trava era o
-      `if (!malId)` do formulário — contornável por requisição direta. A duplicata batia na
-      `UNIQUE (mal_id)` e virava 500, que significa "meu código quebrou"; agora é consulta
-      prévia e 409 com mensagem legível.
-- [x] **Campo travado no modo edição.** Não existe FK de `mal_id` em lugar nenhum, então
-      trocá-lo numa curadoria existente órfãna `media_entries` e `episode_progress` em
-      silêncio. Mesma trava do número de episódio (item 9 do `PITFALLS.md`).
-
-### 08/09/2026 — Chips de tag da Busca voltam a filtrar
-
-- [x] **12 chaves faltantes no mapa `equivalentes` do `search.go`.** O chip manda o termo em
-      inglês (`Magic`) e a curadoria guarda português (`Magia`); sem a chave, o `mesmoRotulo`
-      descartava o anime como se não batesse. Afetava `Magic`, `Demons`, `Military`, `Samurai`,
-      `Seinen`, `Shoujo`, `Yuri`, `Super Power`, `Video Games`, `Boys' Love`, `Female Harem` e
-      `Male Harem` — os 17 gêneros estavam íntegros, só as tags foram esquecidas quando a lista
-      de chips cresceu. Sintoma: "Nada encontrado" com o selo da tag visível nos cards. Rótulos
-      conferidos contra `SELECT custom_tags FROM curated_animes`. Ver #NN, `DECISIONS.md` e o
-      item 19 do `PITFALLS.md`.
-
----
-
-## 📋 Backlog / Ideias em Avaliação
-
-> Nada aqui é compromisso de escopo. Reavaliar depois do beta da Fase 7, com base em uso real.
-
-- [ ] **🔴 Testar a restauração do backup automático.** A rotina de 22/09 captura todo dia,
-      mas nunca foi restaurada — a validação de 01/09 cobriu o `backup.sh` manual, que é outro
-      script e outro destino. Backup não restaurado é esperança, não backup. Refazer o
-      procedimento de 01/09 num projeto Supabase descartável: contagens, `security_invoker`,
-      policies e RPCs. **É a pendência com maior custo em caso de acidente.**
-
-- [ ] **Homologação sem destino.** O ambiente de staging vivia no Render. O fluxo de branch do
-      `AGENTS.md` continua, mas não há onde validar antes de promover. Opções: um segundo
-      container na mesma VPS apontando para a branch `staging`, ou aceitar explicitamente que
-      a validação passou a ser local.
-
-- [ ] **Resync pular quem já está em dia.** Hoje ele refaz os 114 toda vez,
-      inclusive quem sincronizou há uma hora. Pular quem foi atualizado nos
-      últimos N dias encurta a rodada e economiza cota real. O que **não** vale
-      mexer é na velocidade: o rate limiter já gasta a cota do minuto em rajada
-      e espera o reset, que é o comportamento certo — a mensagem
-      "Limite de requisições atingido" é que parece erro sem ser.
-
-- [ ] **Meio-dia local vs. meio-dia UTC.** Data sem hora é completada com
-      meio-dia **local** no `CuradoriaEpisodios.tsx` e meio-dia **UTC** no
-      `CalcularProximoEpisodioCurado`. Os dois evitam o recuo para o dia
-      anterior (item 3), mas não são o mesmo instante — 3h de diferença em
-      Brasília. Hoje sem caso ativo: todo `aired_at` do catálogo tem hora
-      explícita. Volta a existir se entrar data sem hora por outro caminho.
-
-- [ ] **Agente Olheiro — evolução da pontuação.** A v1 nasce com fórmula simples e proposital;
-      refinar incrementalmente conforme o catálogo e a base de usuários crescerem.
-- [ ] **Relatório semanal por e-mail (Gmail API, SDK oficial em Go).** Removido do escopo da
-      Fase 4.5 em 21/08/2026 — depende do Agente Olheiro estar validado e produzindo sugestões
-      de qualidade. Mandar e-mail com recomendação ruim é pior que não mandar.
-- [ ] **Notificações de novas temporadas/sequências** — avisar quando uma sequência/temporada nova é anunciada.
-- [ ] **Filtro por ano na Busca, independente de temporada** — hoje o campo de ano só habilita se
-      uma temporada estiver selecionada (ver `docs/ideias-para-melhorias.md`, item 7.1). Aceitável
-      como está por ora; revisar se surgir demanda real de usuário.
-- [ ] **Anime que não existe nem na AniList nem no MAL.** O campo manual de `mal_id`
-      (08/09/2026) já cobre toda obra que tem id. Sobrou só a que não existe em fonte
-      nenhuma. Exige id próprio, e cada um vira uma fusão de quatro tabelas no dia em
-      que a obra ganhar `mal_id`. Só virar tarefa quando aparecer um caso concreto.
-      Ver `DECISIONS.md` de 08/09/2026.
-
-- [ ] **Derivar o `equivalentes` da `genre_taxonomy` em vez de cravá-lo no `search.go`.**
-      Foi por divergir da tabela que os chips de tag pararam de filtrar em 08/09/2026.
-      Ganho: tag nova passa a funcionar sem deploy. Cuidado: caminho quente da Busca,
-      precisa de cache. Ver item 19 do `PITFALLS.md`.
-
-- [ ] **Levar o relatório de completude para a tela.** A query já existe em
-      `sql/relatorio_curadoria_v2.sql` e roda no SQL Editor. Virar seção do Painel
-      de Controle é uma view mais uma tabela, e cada linha vira item da fila da 9.3.
-      **A régua está na v2 e não pode ser afrouxada:** campo vazio **com** linha em
-      `anime_metadata_cache` não é pendência — é a AniList respondendo. A v1 contava
-      assim e acusou 114 de 114 animes "sem duração e sem estreia", que é ruído.
-
-- [ ] **Varredura de divergência — o que está *errado*, não o que falta.** Outra
-      coisa do relatório acima, que é SQL puro e exato. Aqui é comparar o banco com
-      o mundo real: uma busca web por anime, com custo. Só faz sentido nos que já
-      estão completos. **Desenho obrigatório:** o modelo mostra o que a fonte diz ao
-      lado do que está no banco, e o humano decide. Ele aponta divergência, nunca dá
-      veredito — senão você confere tudo à mão de novo, que é o trabalho a evitar.
-
-
-- [ ] **Agente de inconsistências.** Compara o que já existe no banco em vez de
-      buscar fora: data em `curated_animes` contra `anime_metadata_cache`, contagem
-      de episódios contra a AniList, numeração de `custom_episodes` fora de sequência.
-      Divergência vira sugestão na fila do Olheiro, que já existe. Quase tudo é SQL —
-      IA só entraria se você quisesse que ele fosse buscar a versão correta.
-
-- [ ] **Feeds RSS do LiveChart como fonte de calendário.** O LiveChart tem os dados
-      de agenda melhor estruturados que a AniList (horário com fuso explícito), mas
-      não tem API pública e bloqueia acesso automatizado por `robots.txt`. Oferece
-      feeds RSS. Vale investigar se dá para alimentar o Calendário sem IA e sem
-      depender de fonte única.
-
-### Avaliado e descartado (documentado pra não reabrir sem contexto)
-
-- **Fórum, Clubes, Blogs:** equivalem a construir uma rede social inteira.
-- **Mensageria direta (Inbox):** pressupõe comunidade ativa.
-- **News / Featured Articles / MALxJapan:** conteúdo editorial que o MAL produz com equipe própria.
-- **Mini-página de Pessoa/Estúdio** — ao clicar num dublador/estúdio na página de Detalhe, ver outros trabalhos dele.
-- **Fase 6 — Notícias de Anime (descartada em 21/08/2026):** exigiria avaliar e manter fontes RSS,
-  um job de ingestão periódica e curadoria contínua, sem resolver nenhuma dor real de quem usa o
-  AniDeck para organizar o que assiste. Mesmo motivo do descarte anterior de "News / Featured
-  Articles" — a diferença é que ali era conteúdo editorial de terceiro e aqui seria agregação
-  automática, mas o custo de manutenção recai igual sobre um projeto de um desenvolvedor só.
-- **Publicação na Play Store via TWA (descartada em 21/08/2026):** exige conta de desenvolvedor
-  Google com custo em dólar, conformidade com política de loja, ciclo de review a cada
-  atualização e manutenção permanente. O PWA já entrega instalação, ícone e tela cheia — o
-  ganho marginal não paga o custo recorrente no estágio atual.
-- **Cache offline completo no Service Worker (descartada em 21/08/2026):** o AniDeck depende de
-  dado vivo da AniList (episódio no ar, calendário, contagem regressiva). Offline entregaria uma
-  versão degradada do produto e adicionaria uma classe inteira de bugs de sincronização entre o
-  cache e o servidor. O Service Worker segue existindo apenas para viabilizar o PWA e o push.
+**Descoberto no caminho, tudo no `PITFALLS.md`:** o Docker fura o UFW (11), deploy verde
+não garante código novo (12) e o `.env` do servidor envelhece sozinho — foi o que
+derrubou o Grimoire depois de uma senha rotacionada (13).
 
 ---
 
 ## 🧭 Notas de manutenção deste arquivo
 
-- Fases são numeradas cronologicamente. Dívida técnica ou requisito novo vira fase `.5`
-  intermediária, inserida entre as duas fases que a originaram — nunca empilhada no final.
-- Fase concluída não é apagada — vira registro histórico com os itens marcados.
-- Item abandonado não é apagado — vai para "Avaliado e descartado" **com a justificativa**,
-  para não ser reaberto sem contexto meses depois.
+- Fase concluída não é apagada: vira registro histórico com os itens marcados.
+- Item abandonado vai para "avaliado e descartado", **com a justificativa** — para não
+  ser reaberto sem contexto meses depois.
 - Ideia nova vai para o Backlog. Só vira fase quando houver decisão explícita de fazer.
-- Decisão estrutural (arquitetura, framework, banco, auth) não mora aqui: vai para `DECISIONS.md`.
+- Decisão estrutural vai para o `DECISIONS.md`, não para cá.
+- Protótipo que muda o escopo exige revisão deste arquivo **no mesmo commit**. Roadmap
+  descrevendo um produto e protótipo mostrando outro é pior que não ter nenhum dos dois.

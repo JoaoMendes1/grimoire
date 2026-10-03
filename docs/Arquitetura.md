@@ -3,7 +3,8 @@
 > O mapa do sistema: o que existe, por onde passa uma requisição e o que cada peça
 > faz. Escrito em 19/09/2026 a partir do código, não de memória.
 >
-> Atualizado em 22/09/2026 com a migração do Render para VPS própria.
+> Atualizado em 22/09/2026 com a migração do Render para VPS própria, e em 03/10/2026
+> com o schema versionado e as policies de RLS.
 
 ---
 
@@ -40,25 +41,36 @@ para o container pelo nome do serviço (`grimoire:8080`).
 
 **O ponto que precisa ficar claro:** o isolamento entre usuários acontece no `WHERE
 user_id = $1` de cada handler. A conexão com o banco usa a `DATABASE_URL` como
-`postgres`, que ignora RLS. Ver item 1 do `PITFALLS.md`.
+`postgres`, que ignora RLS. As policies do `sql/002` são a segunda camada: valem para
+quem acessa pela API do Supabase com JWT, não para o Go. Ver item 1 do `PITFALLS.md`.
 
 ---
 
 ## Banco
 
-Duas tabelas, criadas hoje pelo `database.InitDB()` a cada boot:
+Duas tabelas. O schema vive em `sql/`, versionado e aplicado à mão no Supabase — ver
+`sql/README.md`.
+
+O `database.InitDB()` **não cria nem altera tabela**: abre a conexão, faz `Ping` e
+confere se as duas tabelas existem. Se faltar alguma, o servidor não sobe. Até
+19/09/2026 era ele quem criava o schema a cada boot — ver item 3 do `PITFALLS.md`.
 
 | Tabela | Colunas |
 |---|---|
-| `categories` | `id`, `name`, `user_id`, `created_at` |
-| `vocabularies` | `id`, `term`, `translation`, `audio_url`, `status`, `user_id`, `category_id`, `created_at` |
+| `categories` | `id`, `name`, `user_id` (`uuid`, obrigatório), `created_at` |
+| `vocabularies` | `id`, `term`, `translation`, `audio_url`, `status`, `user_id` (`uuid`, aceita nulo), `category_id`, `created_at` |
 
 `vocabularies.category_id` referencia `categories(id)` com `ON DELETE SET NULL`:
 apagar uma categoria não apaga as palavras dela.
 
 Índices em `categories(user_id)`, `vocabularies(user_id)` e `vocabularies(category_id)`.
 
-RLS ligada nas duas, sem policy — ver `DECISIONS.md` de 19/09/2026.
+RLS ligada nas duas, com uma policy de dono em cada: `vocabularies_dono` e
+`categories_dono`, `FOR ALL`, com `USING` e `WITH CHECK` comparando `auth.uid()` com
+`user_id`. Ver `sql/002_rls_policies.sql`.
+
+**Não há FK de `user_id` para `auth.users`.** Excluir uma conta deixa o vocabulário
+dela órfão. Ver as decisões pendentes no `DECISIONS.md`.
 
 **`status` existe com default `'Pendente'` e não é usado por nenhuma tela.** É resíduo
 de uma etiqueta removida na Fase 2, e candidato a remoção.
@@ -128,8 +140,9 @@ categorias, filtro ativo, item em edição. Ver item 8 do `PITFALLS.md`.
 
 ## Deploy
 
-Desde 22/09/2026 o Grimoire roda em **VPS própria** (Integrator, Ubuntu 26.04 LTS), em
-container Docker, atrás do **Caddy** como proxy reverso. **O Render foi suspenso.**
+Desde 22/09/2026 o Grimoire roda em **VPS própria** (Integrator, Ubuntu 26.04 LTS), na
+mesma máquina dos outros projetos, em container Docker atrás do **Caddy** como proxy
+reverso. **O Render foi suspenso.**
 
 | Item | Valor |
 |---|---|
@@ -139,7 +152,8 @@ container Docker, atrás do **Caddy** como proxy reverso. **O Render foi suspens
 | Variáveis | `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLIC_KEY`, `PORT` |
 
 As variáveis vivem no `.env` da pasta do projeto no servidor e entram no container pelo
-`env_file` do compose. O `.env` não vai para o Git, e é copiado no backup diário.
+`env_file` do compose. O `.env` não vai para o Git, e é copiado no backup diário. Ele
+não se atualiza sozinho — ver item 13 do `PITFALLS.md`.
 
 ### Por que `expose` e não `ports`
 
@@ -147,7 +161,7 @@ O container declara `expose: 8080`, não `ports`. Só o Caddy alcança a porta.
 
 Isso é deliberado: **o Docker escreve regras direto no `iptables` e fura o UFW**. Porta
 publicada com `-p` fica acessível pela internet mesmo sem regra no firewall — foi
-testado e comprovado durante a migração.
+testado e comprovado durante a migração. Ver item 11 do `PITFALLS.md`.
 
 ### Publicar
 
@@ -163,12 +177,17 @@ docker image prune -f
 O build acontece na VPS. Não há registro de imagens — decisão consciente: build de
 ~90 s numa máquina ociosa não justifica a peça extra.
 
+A Action fica verde mesmo quando o `git pull` não trouxe nada. Ver item 12 do
+`PITFALLS.md`.
+
 ### O que mudou em relação ao Render
 
 - **Não há mais hibernação.** O container está sempre de pé, e a primeira visita do dia
   não demora mais.
 - **O mapa do rate limit** só zera em deploy ou restart de verdade, não a cada
   acordada.
+- **O IP de saída virou fixo**, e é o mesmo dos outros projetos da máquina. Um bloqueio
+  do Google atinge sempre esse endereço. Ver item 5 do `PITFALLS.md`.
 - **Atualização de sistema e backup passaram a ser responsabilidade própria.** O
   `unattended-upgrades` cuida das correções de segurança; o backup roda às 3h todo dia
-  para o Google Drive.
+  para o Google Drive. **A restauração desse backup nunca foi testada.**
