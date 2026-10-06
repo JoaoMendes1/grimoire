@@ -74,7 +74,7 @@ Ver `sql/README.md` para a convenção.
 
 `git push` na `main`. Uma GitHub Action entra na VPS por SSH, atualiza o código,
 gera a imagem e recria o container. Os detalhes — e por que o container usa `expose`
-e não `ports` — estão em `docs/Arquitetura.md`.
+e não `ports` — estão em `docs/ARQUITETURA.md`.
 
 ## 📂 Estrutura
 
@@ -87,17 +87,18 @@ internal/
   models/         contratos de request e response
 static/           index.html, app.js, style.css, manifest, service worker
 sql/              schema versionado e snapshot do banco
-docs/             regras, arquitetura, decisões, armadilhas e roadmap
+docs/             arquitetura, decisões, armadilhas e roadmap
+AGENTS.md         regras para quem mexe no repositório
 ```
 
 ## 📚 Documentação
 
 | Arquivo | Para quê |
 |---|---|
-| `docs/Agents.md` | Como trabalhar neste repositório. **Leia antes de mexer** |
-| `docs/Arquitetura.md` | Como o sistema funciona por dentro |
-| `docs/Decisions.md` | O que foi decidido e por quê |
-| `docs/Pitfalls.md` | Armadilhas conhecidas, com sintoma e conferência |
+| `AGENTS.md` | Como trabalhar neste repositório. **Leia antes de mexer** |
+| `docs/ARQUITETURA.md` | Como o sistema funciona por dentro |
+| `docs/DECISIONS.md` | O que foi decidido e por quê |
+| `docs/PITFALLS.md` | Armadilhas conhecidas, com sintoma e conferência |
 | `docs/ROADMAP.md` | O que foi feito e o que vem |
 | `sql/README.md` | Convenção do schema versionado |
 

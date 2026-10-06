@@ -1,7 +1,7 @@
 # 🤖 AGENTS.md — como trabalhar neste repositório
 
 > Regras de execução para qualquer pessoa ou IA que mexa no Grimoire. Leia este
-> arquivo e o `PITFALLS.md` antes de escrever a primeira linha.
+> arquivo e o `docs/PITFALLS.md` antes de escrever a primeira linha.
 
 ---
 
