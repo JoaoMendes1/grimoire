@@ -1,109 +1,188 @@
-# 🤖 AGENTS.md — como trabalhar neste repositório
+# AGENTS.md
 
-> Regras de execução para qualquer pessoa ou IA que mexa no Grimoire. Leia este
-> arquivo e o `docs/PITFALLS.md` antes de escrever a primeira linha.
+> Regras para quem trabalha neste repositório, pessoa ou IA. Ferramentas de IA (Claude Code,
+> Cursor, Codex CLI etc.) leem este arquivo e o `docs/PITFALLS.md` antes de qualquer tarefa.
 
----
+## Este repositório
 
-## 1. Fluxo de trabalho
+**Grimoire** é um dicionário pessoal de vocabulário inglês ↔ português, com tradução
+automática, áudio e flashcards, instalável como PWA. É de uso pessoal.
 
-1. **Issue antes de código.** Toda mudança nasce de uma issue, no formato da seção 8.
-   Correção de uma linha também: sem issue, o histórico não explica o porquê.
-2. **Uma issue, um assunto.** Correção de bug e recurso novo não andam no mesmo commit.
-3. **Documentação junto do código, no mesmo commit.** Decisão registrada depois é
-   decisão perdida.
+- **Endereço:** `https://grimoire.joaomendes.dev.br`
+- **Stack:** Go 1.26 com chi e JWT do Supabase Auth, validado por JWKS · PostgreSQL no Supabase, por `lib/pq`
+  (SQL direto) · frontend em HTML, CSS e JavaScript puro, em `static/`.
+- **Documentação em `docs/`.** Na raiz ficam só este `AGENTS.md`, que as ferramentas de IA
+  procuram ali, e o `README.md`, a porta de entrada do repositório.
+- **Repositório público.** Nada de IP, nome de usuário do servidor, conteúdo de `.env`, regra
+  de firewall ou porta aberta para a internet entra aqui, nem em documentação, nem em
+  comentário. A porta interna do container (8080) pode aparecer: só existe na rede do compose.
+- **A infraestrutura do servidor é mantida no repositório privado `infra`:** compose de
+  produção e proxy. DNS, backup e variáveis do servidor também ficam fora daqui. Quando uma
+  mudança exigir algo no servidor (variável nova, rota no proxy), indique o que precisa
+  mudar lá.
 
-## 2. Verdade sobre o código
+## Regras deste projeto
 
-4. **Nunca afirme nada sobre o código sem abrir o arquivo.** Suspeita não é achado.
-   Se a conclusão depende do que uma função faz, leia a função.
-5. **Nunca conclua sobre dado sem consultar o banco.** Contagem, formato e valor nulo
-   se verificam com `SELECT`, não com memória.
-6. **Erro reproduzido antes de corrigido.** Correção sem sintoma observado conserta o
-   problema errado.
+Valem só aqui. Cada uma com o motivo, para não ser quebrada sem saber o custo.
 
-## 3. Como entregar mudança de código
+**Processo**
 
-> Estas quatro regras são as mais importantes deste arquivo. Todas nasceram de
-> arquivo quebrado em sessão real.
+- **Uma issue, um assunto.** Correção de bug e recurso novo não andam no mesmo commit.
+- **Documentação junto do código, no mesmo commit.** Decisão registrada depois é decisão
+  perdida.
+- **Erro reproduzido antes de corrigido.** Correção sem sintoma observado conserta o
+  problema errado.
+- **Nunca conclua sobre dado sem consultar o banco.** Contagem, formato e valor nulo se
+  verificam com `SELECT`, não com memória.
 
-7. **Mudança grande é arquivo inteiro.** Se a alteração toca mais de três pontos do
-   mesmo arquivo, ou reorganiza a estrutura dele, entregue o arquivo completo para
-   substituir. Colar por partes num arquivo que já mudou duas vezes produz um
-   Frankenstein que não compila e ninguém sabe onde quebrou.
-8. **Mudança pequena vem com o bloco inteiro que sai e o bloco inteiro que entra.**
-   Nunca "a primeira linha é X, a última é Y": num arquivo com dezenas de `}` e
-   `</div>`, âncora ambígua é erro garantido. O bloco a remover vai visível, do jeito
-   exato que está no arquivo, para dar para conferir antes de apagar.
-9. **A âncora do Ctrl+F tem que ser única no arquivo.** Antes de mandar, verifique se
-   aquele texto aparece uma vez só. Se aparecer duas, inclua as linhas vizinhas até a
-   busca ficar única.
-10. **Depois de duas substituições no mesmo arquivo, mande o arquivo inteiro.** As
-    âncoras do terceiro passo foram escritas contra uma versão que não existe mais.
+**Banco**
 
-## 4. Banco de dados
+- **O schema vive em `sql/`**, em arquivos numerados, aplicados à mão no SQL Editor do
+  Supabase. O servidor não cria nada no boot: conecta, faz `Ping` e confere se as tabelas
+  existem.
+- **Mudança de coluna é `ALTER`, num arquivo próprio.** Arquivo aplicado nunca é editado.
+- **Toda tabela nasce com RLS ligada e policy escrita.** A conexão do Go roda como
+  `postgres` e ignora RLS: o isolamento real é o `WHERE user_id = $1` de cada handler, e a
+  policy é a camada que sobra quando alguém esquece o filtro.
+- **Todo arquivo de `sql/` termina com a conferência**, comentada: a consulta que prova que
+  ele fez o que dizia. Depois de aplicar, a data vai no `sql/README.md` e o snapshot é
+  regenerado.
+- **O mesmo valor não existe no código e no banco.** Se existir, um dos dois está errado e
+  ninguém vai perceber.
 
-11. **O schema vive em `sql/`, versionado.** Arquivo numerado, aplicado à mão no SQL
-    Editor do Supabase, nunca editado depois de aplicado — correção é arquivo novo.
-12. **`CREATE TABLE IF NOT EXISTS` não altera tabela existente.** Mudança de coluna
-    exige `ALTER`, e num arquivo próprio.
-13. **Toda tabela nasce com RLS ligada e policy escrita.** O filtro no Go é a primeira
-    camada; a policy é a que sobra quando alguém esquece o `WHERE`.
-14. **Todo arquivo `sql/` traz a conferência junto**, comentada no fim: a consulta que
-    prova que ele fez o que dizia.
-15. **Depois de aplicar, registre a data no `sql/README.md` e regenere o snapshot.**
+**Go**
 
-## 5. Go
+- **Campo numérico ausente vira zero.** Use ponteiro no JSON quando o zero for um valor
+  possível e diferente de "não informado".
+- **Função que decide algo fica pura**, sem banco e sem rede: quem precisa de dado recebe
+  dado por parâmetro. É o que permite testar a regra sem subir o banco.
+- **Mudou uma assinatura:** `go build ./...` antes do commit e, quando houver testes,
+  `go test ./...`. O projeto ainda não tem testes automatizados.
 
-16. **Erro de terceiro não é 500.** `500` significa "meu código quebrou". Falha de API
-    externa é `503`, com corpo dizendo o motivo.
-17. **Campo numérico ausente vira zero.** Use ponteiro no JSON quando o zero for um
-    valor possível e diferente de "não informado".
-18. **Função que decide algo fica pura e testável**, sem banco e sem rede. Quem precisa
-    de dado recebe dado por parâmetro.
-19. **Mudou assinatura, rode os testes.** O que compila pode ter quebrado um mock.
+**Frontend**
 
-## 6. Frontend
+- **Texto de usuário só entra no `innerHTML` depois do `escapeHTML`.**
+- **Sem `onclick` com string interpolada:** `data-*` mais `addEventListener`.
+- **Estado global só quando não houver alternativa**, no topo do arquivo, com comentário do
+  que ele guarda.
 
-20. **Nada de texto de usuário em `innerHTML` sem passar pelo `escapeHTML`.**
-21. **Sem `onclick` com string interpolada.** `data-*` mais `addEventListener`.
-22. **Estado global só quando não houver alternativa**, e sempre no topo do arquivo,
-    com comentário do que ele guarda.
+## Lições de outros projetos que valem aqui
 
-## 7. Comentário
+Cada uma já custou caro em outro repositório.
 
-23. **Comentário explica o porquê, não o quê.** `// TagDesejada é uma tag desejada`
-    não informa nada. O que vale é a razão da escolha e o que acontece se alguém
-    desfizer.
-24. **Um fato, um lugar.** Se o mesmo valor existe no código e no banco, um dos dois
-    está errado e ninguém vai perceber.
+- **Erro de serviço de terceiro é `503`, nunca `500`.** `500` diz "o meu código quebrou";
+  `503`, "um serviço do qual eu dependo está fora". O motivo vai no corpo da resposta.
+- **Variável de ambiente obrigatória faltando derruba o boot**, com o nome dela no log. Falha
+  tardia, no meio de uma requisição, esconde que a causa era configuração.
+- **Identidade vem do token.** O id do usuário sai do token validado, nunca do corpo, da URL
+  ou da query string.
+- **Recurso de outro usuário responde `404`, não `403`.** O `403` confirma que o recurso
+  existe.
+- **No servidor, nenhum container publica porta com `ports`.** O proxy alcança a aplicação
+  pela rede interna (`expose`); porta publicada fica aberta mesmo sem regra no firewall.
+- **Fim de linha LF em todos os arquivos**, pelo `.gitattributes`. Script com CRLF quebra no
+  container Linux com um erro que não aponta a causa.
+- **Chave de API fica no servidor.** O que vai para o navegador, qualquer visitante lê.
 
-## 8. Formato de issue
+## Fluxo de trabalho obrigatório
 
-```markdown
-Título: <tipo>: <descrição curta> #NN
+1. **Toda alteração com decisão nasce de uma issue**, escrita antes do código, por um dos
+   modelos em `.github/ISSUE_TEMPLATE/`: **Funcionalidade** ou **Bug**. A issue é
+   obrigatória quando a alteração:
+   - mexe em schema, dado de usuário, autenticação ou regra de negócio;
+   - corrige bug, de qualquer tamanho: a causa é o que mais ensina, e some se não for escrita;
+   - envolve escolha estrutural: biblioteca nova, padrão de componente, navegação;
+   - muda como o projeto sobe ou é publicado: `Dockerfile`, deploy.
 
-**🏷️ Labels:** `bug` | `feat` | `refactor`, e a área
+   Dispensam issue: texto de interface, ajuste visual dentro do padrão, documentação,
+   configuração do repositório, refatoração sem mudança de comportamento e atualização de
+   dependência sem mudança de código (`chore(deps)`). Na dúvida: daqui a três meses, alguém
+   vai perguntar "por que foi feito assim?"? Se sim, abre issue.
 
-### 🎯 Objetivo
-O problema em uma ou duas frases, com o sintoma observado.
+2. **Neste projeto, o push na `main` publica.** Não há CI nem ambiente de homologação: a
+   conferência é rodando localmente, antes do push. A branch `staging` existe, mas não está
+   em uso.
 
-### 📋 Tarefas
-- [ ] passos concretos
+3. **Commits:** `tipo(escopo): descrição curta (closes #NN)`. Tipos: `feat`, `fix`,
+   `refactor`, `docs`, `chore`. O escopo é a label de área (`backend`, `frontend`,
+   `database`...); documentação e configuração fora de uma área de código usam `infra`. O
+   `closes #NN` só no commit que completa a issue.
 
-### ✅ Critérios de Aceite
-- [ ] o que precisa ser verdade no fim
-- [ ] Testes unitários criados (caminho feliz e cenários de erro)
+**Labels:** catálogo do `modelo-projeto`, nome em inglês e descrição em português. Toda issue
+recebe um tipo e uma ou mais áreas. Os modelos de issue aplicam `feature` e `bug` pelo nome
+exato: renomear uma delas faz o modelo deixar de aplicá-la, sem erro.
 
-### ⚠️ Armadilhas em jogo
-Itens do PITFALLS.md que esta mudança toca.
+| Grupo | Labels |
+|---|---|
+| Tipo | `feature`, `enhancement`, `bug`, `security`, `refactor`, `documentation`, `chore`, `decision` |
+| Área | `backend`, `frontend`, `database`, `auth`, `infra`, `integration`, `ai`, `mobile`, `ui/ux` |
+
+**Quadro** (GitHub Projects): a issue fechada vai sozinha para Done. Nunca arraste o cartão
+para Done à mão: isso fecha a issue antes de o código chegar à `main`.
+
+```bash
+# 1. Main local atualizada
+git checkout main
+git pull origin main
+
+# 2. Preparar e conferir, numa passada só, o que vai entrar no commit
+git add -A && git status && git --no-pager diff --cached -M
+
+# 3. Commitar e publicar (o push dispara o deploy)
+git commit -m "tipo(escopo): descrição curta (closes #NN)"
+git push origin main
 ```
 
-## 9. Commit
+- **Revert sempre pelo código do commit** (`git revert a1b2c3d`), nunca por `HEAD`.
+- **Action verde não garante código novo.** Antes de acusar o deploy, confira o commit na
+  `main` do GitHub e no `git log --oneline -3` do servidor.
+- **Em mais de uma máquina:** push antes de sair de uma, pull antes de começar na outra.
 
-```
-<tipo>(<área>): <o que mudou> (closes #NN)
-```
+## Regras de código
 
-Tipos: `feat`, `fix`, `refactor`, `docs`, `chore`.
-O `closes` só no commit que completa a issue.
+Prefira a solução simples e defensável à mais abstrata: todo código daqui precisa poder ser
+explicado, linha por linha, por quem o mantém.
+
+4. **Comentários explicam o quê e o porquê**, em tom formal e impessoal, numa linha sempre
+   que possível, e só onde o porquê não é óbvio: a razão da escolha e o que acontece se
+   alguém desfizer. Número de issue não entra no código.
+
+5. **Segurança não é uma fase separada.** Entrada de usuário, autenticação e dado sensível já
+   nascem com validação.
+
+6. **Verificação de dependências.** Antes de propor pacote, SDK, API ou versão de Action,
+   confira se é a versão atual e mantida. Pacote obsoleto ou em fim de vida não entra. Sem
+   certeza, pesquise antes de gerar o código.
+
+7. **Suspeita não é achado.** Não aponte problema sem o arquivo na mão: se a conclusão
+   depende do que uma função faz, leia a função. Peça o arquivo, ou o `grep` que localiza os
+   pontos de uso, e só então conclua.
+
+8. **Revisão antes do commit** em mudança não trivial (feature nova, autenticação, dado
+   sensível): a saída de `git diff --cached` é lida antes do commit.
+
+## Regras de documentação
+
+9. **Um fato, um lugar.** Nada é copiado de um documento para outro; um aponta para o outro.
+
+   | Arquivo | O que mora nele |
+   |---|---|
+   | `docs/ROADMAP.md` | Escopo: fases, MVP, dívidas, ideias. A cada entrega, no mesmo push: itens marcados com `[x]` e a issue |
+   | `docs/DECISIONS.md` | Decisões estruturais, com o porquê e o custo aceito. Não é log de commit |
+   | `docs/PITFALLS.md` | Armadilhas que já aconteceram. Corrigida é marcada, nunca apagada |
+   | `docs/ARQUITETURA.md` | Como o sistema funciona hoje. Mudou o funcionamento, muda no mesmo commit |
+   | `sql/` | Schema versionado. Arquivo aplicado nunca é editado |
+
+10. **Fase nova não vai para o fim da fila.** Dívida ou requisito descoberto no caminho vira
+    fase intermediária (ex.: 3.5), entre as duas que a originaram.
+
+11. **Armadilha conhecida tem pergunta obrigatória.** Tarefa que toca a área de uma armadilha
+    do `docs/PITFALLS.md` responde a pergunta dela, com o arquivo real na mão. A issue lista
+    as armadilhas em jogo.
+
+## Este projeto no portfólio
+
+Este projeto aparece no portfólio **JVM Systems** (`joaomendes.dev.br`, repositório
+`jvm-systems`), por um arquivo em `src/content/projetos/`. O site não afirma nada que o
+código não sustente: entrega que muda o estado, a fase, a stack ou a capa muda também o
+estudo de caso.

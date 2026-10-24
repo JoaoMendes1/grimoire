@@ -162,7 +162,7 @@ de modo em tela pronta significa reescrever a tela.
       histórico de acertos e erros. Arquivo próprio em `sql/`, com `ALTER TABLE`.
 - [ ] **Agendador como função pura em Go**, sem banco e sem rede: recebe o estado atual
       e a resposta, devolve o próximo estado. É o que torna o motor testável sem
-      subir o Postgres — regra 18 do `AGENTS.md`.
+      subir o Postgres — regra "função que decide algo fica pura" do `AGENTS.md`.
 - [ ] **Testes de mesa** do agendador: acerto no prazo, acerto atrasado, erro,
       primeira revisão, teto de intervalo.
 - [ ] **Tela Hoje:** a fila do dia dimensionada pelo tempo disponível, não por número
