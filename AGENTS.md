@@ -99,14 +99,14 @@ Cada uma já custou caro em outro repositório.
    dependência sem mudança de código (`chore(deps)`). Na dúvida: daqui a três meses, alguém
    vai perguntar "por que foi feito assim?"? Se sim, abre issue.
 
-2. **Neste projeto, o push na `main` publica.** Não há CI nem ambiente de homologação: a
-   conferência é rodando localmente, antes do push. A branch `staging` existe, mas não está
-   em uso.
+2. **Toda alteração entra primeiro na branch `staging`** e é promovida para a `main`, que
+   publica. Não há CI nem ambiente de homologação: a promoção depende de conferência local,
+   com o sistema rodando.
 
 3. **Commits:** `tipo(escopo): descrição curta (closes #NN)`. Tipos: `feat`, `fix`,
    `refactor`, `docs`, `chore`. O escopo é a label de área (`backend`, `frontend`,
    `database`...); documentação e configuração fora de uma área de código usam `infra`. O
-   `closes #NN` só no commit que completa a issue.
+   `closes #NN` só fecha a issue quando o commit chega à `main`.
 
 **Labels:** catálogo do `modelo-projeto`, nome em inglês e descrição em português. Toda issue
 recebe um tipo e uma ou mais áreas. Os modelos de issue aplicam `feature` e `bug` pelo nome
@@ -117,21 +117,34 @@ exato: renomear uma delas faz o modelo deixar de aplicá-la, sem erro.
 | Tipo | `feature`, `enhancement`, `bug`, `security`, `refactor`, `documentation`, `chore`, `decision` |
 | Área | `backend`, `frontend`, `database`, `auth`, `infra`, `integration`, `ai`, `mobile`, `ui/ux` |
 
-**Quadro** (GitHub Projects): a issue fechada vai sozinha para Done. Nunca arraste o cartão
-para Done à mão: isso fecha a issue antes de o código chegar à `main`.
+**Quadro** (GitHub Projects): **Todo → In Progress → Staging Done → Done**.
+
+- A issue nova entra sozinha em Todo, pelo auto-add; a fechada vai sozinha para Done.
+- A passagem para Staging Done é manual: o `closes` só age na `main`.
+- Nunca arraste um cartão para Done à mão: isso fecha a issue antes de o código chegar à
+  `main`.
 
 ```bash
-# 1. Main local atualizada
-git checkout main
-git pull origin main
+# 1. Staging local atualizada
+git checkout staging
+git pull origin staging
 
 # 2. Preparar e conferir, numa passada só, o que vai entrar no commit
 git add -A && git status && git --no-pager diff --cached -M
 
-# 3. Commitar e publicar (o push dispara o deploy)
+# 3. Commitar e subir para a staging
 git commit -m "tipo(escopo): descrição curta (closes #NN)"
+git push origin staging
+
+# 4. Com a conferência local feita: promover (dispara o deploy) e voltar à staging
+git checkout main
+git pull origin main
+git merge staging --no-edit
 git push origin main
+git checkout staging
 ```
+
+- `--no-edit` evita que o merge abra o Vim.
 
 - **Revert sempre pelo código do commit** (`git revert a1b2c3d`), nunca por `HEAD`.
 - **Action verde não garante código novo.** Antes de acusar o deploy, confira o commit na
